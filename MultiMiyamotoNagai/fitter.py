@@ -14,7 +14,7 @@ class MMNFitter:
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """
-    def __init__(self, n_walkers=100, n_steps=1000, random_seed=120, fit_type='potential', verbose=True):
+    def __init__(self, n_walkers=100, n_steps=1000, random_seed=120, fit_type='potential', check_positive_definite=True, verbose=True):
         """
         Constructor for the MultiMiyamotoNagai fitter. The fitter is based on emcee.
 
@@ -39,7 +39,9 @@ class MMNFitter:
         self.n_values = 0
         self.yerr = None
 
+        # Flags
         self.verbose = verbose
+        self.check_DP = check_positive_definite
 
         np.random.seed(random_seed)
 
@@ -117,6 +119,25 @@ class MMNFitter:
         :param models: the list of models
         :return: the loglikelihood of the sum of models
         """
+
+        M = MMNModel()
+        
+        # Checking that a+b > 0 for every model :
+        for id_mod, axis in enumerate(self.axes):
+            a, b, M = models[id_mod*3:(id_mod+1)*3]
+            if a+b < 0:
+                return -np.inf
+
+            # If we are checking for positive-definiteness we add the disk to the model
+            if self.check_DP:
+                M.add_model(axis, a, b, M)
+
+        # Now checking for positive-definiteness:
+        if self.check_DP:
+            if not M.is_positive_definite():
+                return -np.inf
+
+        # Everything ok, we proceed with the likelihood :
         p = self.data[:, 3]
         model = self.sMN(models)
         inv_sigma2 = 1.0/(self.yerr**2)
