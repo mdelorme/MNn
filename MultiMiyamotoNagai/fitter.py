@@ -14,7 +14,7 @@ class MMNFitter:
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """
-    def __init__(self, n_walkers=100, n_steps=1000, random_seed=120, fit_type='potential', check_positive_definite=True, verbose=True):
+    def __init__(self, n_walkers=100, n_steps=1000, random_seed=120, fit_type='potential', check_positive_definite=False, verbose=True):
         """
         Constructor for the MultiMiyamotoNagai fitter. The fitter is based on emcee.
 
@@ -42,6 +42,9 @@ class MMNFitter:
         # Flags
         self.verbose = verbose
         self.check_DP = check_positive_definite
+        if self.check_DP and self.verbose:
+            print('Warning : Checking for definite-positiveness at every walker step. This ensures that the end model will be definite positive but' +
+                  'might take a very long time to compute !')
 
         np.random.seed(random_seed)
 
@@ -120,7 +123,7 @@ class MMNFitter:
         :return: the loglikelihood of the sum of models
         """
 
-        M = MMNModel()
+        tmp_model = MMNModel()
         
         # Checking that a+b > 0 for every model :
         for id_mod, axis in enumerate(self.axes):
@@ -130,11 +133,11 @@ class MMNFitter:
 
             # If we are checking for positive-definiteness we add the disk to the model
             if self.check_DP:
-                M.add_model(axis, a, b, M)
+                tmp_model.add_model(axis, a, b, M)
 
         # Now checking for positive-definiteness:
         if self.check_DP:
-            if not M.is_positive_definite():
+            if not tmp_model.is_positive_definite():
                 return -np.inf
 
         # Everything ok, we proceed with the likelihood :
@@ -191,12 +194,29 @@ class MMNFitter:
         self.sampler.run_mcmc(pos, self.n_steps, rstate0=np.random.get_state())
 
         # Storing the last burnin results
-        nstp= 0.5*self.n_steps
-        self.samples = self.sampler.chain[:, nstp:, :].reshape((-1, self.ndim))
+        #nstp= 0.5*self.n_steps
+        print(self.sampler.chain.shape)
+        self.samples = self.sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
 
         if self.verbose:
             print("Done.")
 
+        # Checking for positive-definiteness
+        everything_dp = True
+        for sample in self.samples:
+            tmp_model = MMNModel()
+            for id_mod, axis in enumerate(self.axes):
+                  a, b, M = sample[id_mod*3:(id_mod+1)*3]
+                  tmp_model.add_model(axis, a, b, M)
+                  
+            if not tmp_model.is_positive_definite:
+                  everything_dp = False
+                  break
+                  
+        if not everything_dp:
+            print('Warning : Some sample results are not positive definite ! You can end up with negative densities')
+            print('To ensure a positive definite model, consider setting the parameter "check_positive_definite" to True in the fitter !')
+                  
         return self.samples
 
     def plot_disk_walkers(self, id_mod):

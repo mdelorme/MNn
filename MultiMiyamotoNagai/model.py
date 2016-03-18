@@ -278,7 +278,7 @@ class MMNModel:
 
             xopt, fval, ierr, nf = op.fminbound(self.evaluate_density_axis, 0.0, max_range, args = [axis], disp=0, full_output=True)
             if fval < 0.0:
-                print('Warning : This model has a root along the {0} axis (r={1}) : density can go below zero'.format(axis, x0))
+                #print('Warning : This model has a root along the {0} axis (r={1}) : density can go below zero'.format(axis, x0))
                 return False
 
         return True
