@@ -171,7 +171,8 @@ class MMNModel:
         rxz = np.sqrt(x**2+z**2)
         ryz = np.sqrt(y**2+z**2)
 
-        # Storing the first value firectly as the output variable. This allows us to avoid testing for scalar or vector
+        # Storing the first value firectly as the output variable.
+        # This allows us to avoid testing for scalar or vector
         # while initializing the total_sum variable
         a, b, M = self.models[0:3]
         axis = self.axes[0]
@@ -200,11 +201,31 @@ class MMNModel:
         """
         return self._evaluate_quantity(x, y, z, MMNModel.mn_potential)
 
+    def evaluate_potential_vec(self, x):
+        """
+        Returns the summed potential of all the disks at a specific point. x is a Nx3 array
+        """
+        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MMNModel.mn_potential)
+
     def evaluate_density(self, x, y, z):
         """
         Returns the summed density of all the disks at a specific point. xyz can be scalars or a vector
         """
         return self._evaluate_quantity(x, y, z, MMNModel.mn_density)
+
+    def evaluate_density_vec(self, x):
+        """
+        Returns the summed density of all the disks at a specific point. x if a Nx3 array
+        """
+        return self._evaluate_quantity(x[0], x[1], x[2], MMNModel.mn_density)
+
+    def evaluate_density_axis(self, r, axis):
+        if axis == 'x':
+            return self._evaluate_quantity(r, 0, 0, MMNModel.mn_density)
+        if axis == 'y':
+            return self._evaluate_quantity(0, r, 0, MMNModel.mn_density)
+        else:
+            return self._evaluate_quantity(0, 0, r, MMNModel.mn_density)
 
     def evaluate_forceR(self, x, y, z):
         """
@@ -212,11 +233,23 @@ class MMNModel:
         """
         return self._evaluate_quantity(x, y, z, MMNModel.mn_forceR)
 
+    def evaluate_forceR_vec(self, x):
+        """
+        Returns the summed force of all the disks at a specific point. x is a Nx3 array
+        """
+        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MMNModel.mn_forceR)
+
     def evaluate_forceV(self, x, y, z):
         """
         Returns the summed force of all the disks at a specific point. xyz can be scalars or a vector
         """
         return self._evaluate_quantity(x, y, z, MMNModel.mn_forceV)
+
+    def evaluate_forceV_vec(self, x):
+        """
+        Returns the summed force of all the disks at a specific point. xyz can be scalars or a vector
+        """
+        return self._evaluate_quantity(x[0], x[1], x[2], MMNModel.mn_forceV)
 
     def evaluate_circular_velocity(self, x, y, z):
         
@@ -226,11 +259,29 @@ class MMNModel:
         """
         This function returns true if the models are positive definite.
         """
-        rm = op.fminbound(self.evaluate_density, 0, 1000)
-        pm = self.evaluate_density(rm)
-        print("rm=",rm)
-        print("pm=",pm)
-        return pm > 0.0
+        mods = self.get_models()
+        
+        for axis in ['x', 'y', 'z']:
+            # Determine the interval
+            max_range = 0.0
+            for m in mods:
+                # Relevant value : scale parameter for the parallel axes
+                if m[0] != axis:
+                    if m[1] > max_range:
+                        max_range = m[1]
+
+            # If we don't have a max_range then we can skip this root finding : the function cannot go below zero
+            if abs(max_range) < 1e-18:
+                continue
+
+            max_range *= 10.0 # Multiply by a factor to be certain "everything is enclosed"
+
+            xopt, fval, ierr, nf = op.fminbound(self.evaluate_density_axis, 0.0, max_range, args = [axis], disp=0, full_output=True)
+            if fval < 0.0:
+                print('Warning : This model has a root along the {0} axis (r={1}) : density can go below zero'.format(axis, x0))
+                return False
+
+        return True
 
     
 
