@@ -1,6 +1,6 @@
 import sys
 
-import triangle
+import corner
 import emcee
 import matplotlib.pyplot as pl
 import numpy as np
@@ -217,7 +217,7 @@ class MMNFitter:
         if self.verbose:
             print("Computing corner plot ...")
 
-        figt = triangle.corner(self.samples, labels=labels, truths=self.models)
+        figt = corner.corner(self.samples, labels=labels, truths=self.models)
         figt.savefig("Triangle.png")
 
     def compute_quantiles(self, quantiles=(16, 50, 84)):
