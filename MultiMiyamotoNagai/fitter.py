@@ -324,4 +324,23 @@ class MMNFitter(object):
 
         return self.quantiles
 
+    def get_residuals(self, model):
+        """
+        Computes the residual between the data and the model you provide as input
+        :param model: A numpy array of Ndisks*3 parameter values
+        """
+        if self.data == None:
+            print('Error : No data loaded in the fitter ! You need to call "load_data" first')
 
+        # Creating the model object from the parameters
+        mmn = MMNModel()
+        for id_mod, axis in enumerate(self.axes):
+            mmn.add_model(axis, *model[id_mod*3:(id_mod+1)*3])
+
+        # Evaluating the residual :
+        result = self.data[:,3] - mmn.evaluate_density(self.data[:,0], self.data[:,1], self.data[:,2])
+
+        return result
+        
+
+        
