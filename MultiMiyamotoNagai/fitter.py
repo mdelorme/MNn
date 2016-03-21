@@ -23,12 +23,13 @@ def _pickle_method(method):
     return _unpickle_method, (func_name, obj, cls)
 
 def _unpickle_method(func_name, obj, cls):
-    #for cls in cls.mro():
-    try:
-        func = cls.__dict__[func_name]
-        return func.__get__(obj, cls)
-    except KeyError:
-        return None
+    for cls in cls.__mro__:
+        try:
+            func = cls.__dict__[func_name]
+            return func.__get__(obj, cls)
+        except KeyError:
+            pass
+    return None
 
 copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 
@@ -36,7 +37,7 @@ copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 sampler = None
 
 
-class MMNFitter:
+class MMNFitter(object):
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """

@@ -2,7 +2,7 @@ from __future__ import print_function
 import scipy.optimize as op
 import numpy as np
 
-class MMNModel:
+class MMNModel(object):
     """
     This object creates a model comprised of multiple Miyamoto Nagai disks fitting a given potential.
     """
