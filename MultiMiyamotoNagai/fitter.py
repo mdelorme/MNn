@@ -14,7 +14,7 @@ class MMNFitter:
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """
-    def __init__(self, n_walkers=100, n_steps=1000, random_seed=120, fit_type='potential', check_positive_definite=False, verbose=True):
+    def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=120, fit_type='potential', check_positive_definite=False, verbose=True):
         """
         Constructor for the MultiMiyamotoNagai fitter. The fitter is based on emcee.
 
@@ -24,6 +24,7 @@ class MMNFitter:
         """
         self.n_walkers = n_walkers
         self.n_steps = n_steps
+        self.n_threads = n_threads
 
         # The fitted models
         self.sampler = None
@@ -190,7 +191,7 @@ class MMNFitter:
         if self.verbose:
             print("Running emcee ...")
 
-        self.sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood)
+        self.sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood, threads=self.n_threads)
         self.sampler.run_mcmc(pos, self.n_steps, rstate0=np.random.get_state())
 
         # Storing the last burnin results
