@@ -83,7 +83,6 @@ class MMNFitter(object):
         :param nz: Number of disks on the xy plane
         """
         self.ndim = (nx+ny+nz)*3
-        self.models = np.random.rand(self.ndim)
         self.axes = ['x']*nx + ['y']*ny + ['z']*nz
 
     def load_data(self, filename):
@@ -173,7 +172,7 @@ class MMNFitter(object):
         inv_sigma2 = 1.0/(self.yerr**2)
         return -0.5*(np.sum((p-model)**2*inv_sigma2-np.log(inv_sigma2)))
 
-    def maximum_likelihood(self):
+    def maximum_likelihood(self, models):
         """
         Computation of the maximum of likelihood of the models
         """
@@ -181,7 +180,6 @@ class MMNFitter(object):
             print("Computing maximum of likelihood")
 
         # Optimizing the parameters of the models to minimize the loglikelihood
-        models = self.models
         chi2 = lambda m: -2 * self.loglikelihood(m)
         result = op.minimize(chi2, models)
         values = result["x"]
@@ -194,16 +192,16 @@ class MMNFitter(object):
                 stat = axis_stat[axis]
                 axis_name = "{0}{1}".format(stat[1], stat[0])
 
-                print("a{0} = {1} (initial : {2})".format(axis_name, values[id_mod*3], models[id_mod*3]))
-                print("b{0} = {1} (initial : {2})".format(axis_name, values[id_mod*3+1], models[id_mod*3+1]))
-                print("M{0} = {1} (initial : {2})".format(axis_name, values[id_mod*3+2], models[id_mod*3+2]))
+                print("a{0} = {1}".format(axis_name, values[id_mod*3]))
+                print("b{0} = {1}".format(axis_name, values[id_mod*3+1]))
+                print("M{0} = {1}".format(axis_name, values[id_mod*3+2]))
 
                 stat[0] += 1
 
         # Storing the best values as current models
         self.models = values
 
-    def fit_data(self, burnin=100):
+    def fit_data(self, burnin=100, x0=None, x0_range=1e-4):
         """
         This function finds the parameters of the models using emcee
         :param burnin: the number of timesteps to keep after running emcee
@@ -211,7 +209,15 @@ class MMNFitter(object):
         """
 
         # We initialize the positions of the walkers by adding a small random component to each parameter
-        pos = [self.models + 1e-4*np.random.randn(self.ndim) for i in range(self.n_walkers)]
+        if not x0:
+            self.models = np.random.rand(self.ndim)
+        else:
+            if x0.shape != (self.ndim,):
+                print("Warning : The shape given for the initial guess ({0}) is not compatible with the models ({1})".format(
+                    x0.shape, (self.ndim,)))
+            self.models = x0
+            
+        init_pos = [self.models + x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
 
         # Running the MCMC to get the parameters
         if self.verbose:
@@ -219,11 +225,9 @@ class MMNFitter(object):
 
         global sampler
         sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood, threads=self.n_threads)
-        sampler.run_mcmc(pos, self.n_steps, rstate0=np.random.get_state())
+        sampler.run_mcmc(init_pos, self.n_steps, rstate0=np.random.get_state())
 
         # Storing the last burnin results
-        #nstp= 0.5*self.n_steps
-        print(sampler.chain.shape)
         self.samples = sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
 
         if self.verbose:
