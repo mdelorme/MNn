@@ -209,7 +209,7 @@ class MMNFitter(object):
         """
 
         # We initialize the positions of the walkers by adding a small random component to each parameter
-        if not x0:
+        if x0 == None:
             self.models = np.random.rand(self.ndim)
         else:
             if x0.shape != (self.ndim,):
