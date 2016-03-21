@@ -9,6 +9,32 @@ from matplotlib.ticker import MaxNLocator
 
 from model import MMNModel
 
+# Thanks to Steven Bethard for this nice trick, found on :
+# https://bytes.com/topic/python/answers/552476-why-cant-you-pickle-instancemethods
+
+# Allows the methods of MMNFitter to be pickled for multiprocessing
+import copy_reg
+import types
+
+def _pickle_method(method):
+    func_name = method.im_func.__name__
+    obj = method.im_self
+    cls = method.im_class
+    return _unpickle_method, (func_name, obj, cls)
+
+def _unpickle_method(func_name, obj, cls):
+    #for cls in cls.mro():
+    try:
+        func = cls.__dict__[func_name]
+        return func.__get__(obj, cls)
+    except KeyError:
+        return None
+
+copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
+
+
+sampler = None
+
 
 class MMNFitter:
     """
@@ -27,7 +53,6 @@ class MMNFitter:
         self.n_threads = n_threads
 
         # The fitted models
-        self.sampler = None
         self.samples = ()
         self.quantiles = None
         self.models = None
@@ -191,13 +216,14 @@ class MMNFitter:
         if self.verbose:
             print("Running emcee ...")
 
-        self.sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood, threads=self.n_threads)
-        self.sampler.run_mcmc(pos, self.n_steps, rstate0=np.random.get_state())
+        global sampler
+        sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood, threads=self.n_threads)
+        sampler.run_mcmc(pos, self.n_steps, rstate0=np.random.get_state())
 
         # Storing the last burnin results
         #nstp= 0.5*self.n_steps
-        print(self.sampler.chain.shape)
-        self.samples = self.sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
+        print(sampler.chain.shape)
+        self.samples = sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
 
         if self.verbose:
             print("Done.")
@@ -227,17 +253,17 @@ class MMNFitter:
         """
         axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[id_mod]]
         fig, axes = pl.subplots(3, 1, sharex=True, figsize=(8, 9))
-        axes[0].plot(self.sampler.chain[:, :, 0].T, color="k", alpha=0.4)
+        axes[0].plot(sampler.chain[:, :, 0].T, color="k", alpha=0.4)
         axes[0].yaxis.set_major_locator(MaxNLocator(5))
         axes[0].axhline(self.models[id_mod*3], color="#888888", lw=2)
         axes[0].set_ylabel("$a{0}$".format(axis_name))
 
-        axes[1].plot(self.sampler.chain[:, :, 1].T, color="k", alpha=0.4)
+        axes[1].plot(sampler.chain[:, :, 1].T, color="k", alpha=0.4)
         axes[1].yaxis.set_major_locator(MaxNLocator(5))
         axes[1].axhline(self.models[id_mod*3+1], color="#888888", lw=2)
         axes[1].set_ylabel("$b{0}$".format(axis_name))
 
-        axes[2].plot(self.sampler.chain[:, :, 2].T, color="k", alpha=0.4)
+        axes[2].plot(sampler.chain[:, :, 2].T, color="k", alpha=0.4)
         axes[2].yaxis.set_major_locator(MaxNLocator(5))
         axes[2].axhline(self.models[id_mod*3+2], color="#888888", lw=2)
         axes[2].set_ylabel("$M{0}$".format(axis_name))
