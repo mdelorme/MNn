@@ -116,7 +116,7 @@ class MMNModel(object):
     @staticmethod
     def mn_forceV(r, z, ao, bo, Mo):
         """
-        Returns the vertical comonent of Miyamoto Nagai force applied at polar coordinates (r, z)
+        Returns the vertical component of Miyamoto Nagai force applied at polar coordinates (r, z)
         :param r: radius of the point where the density is evaluated
         :param z: height of the point where the density is evaluated
         :param a: disk scale
@@ -282,6 +282,47 @@ class MMNModel(object):
                 return False
 
         return True
+
+    def generate_dataset_meshgrid(self, xmin, xmax, dx, quantity='density'):
+        """
+        Generates a meshgrid of data.
+        :param xmin : a 3-tuple of floats indicating the low bound of the box
+        :param xmax : a 3-tuple of floats indicating the high bound of the box
+        :param dx : a 3-tuple of floats indicating the mesh spacing in every direction
+        :param quantity : the type of quantity to fill the box with
+        """
+
+        quantity_vec = ('density', 'forceR', 'forceV', 'potential')
+        if quantity not in quantity_vec:
+            print('Error : Unknown quantity type {0}, possible values are {1}'.format(quantity, quantity_vec))
+            return
+
+        if len(xmin) != 3 or len(xmax) != 3 or len(dx) != 3:
+            print('Error : You must provide xmin, xmax and dx as triplets of floats')
+            return
+
+        Xsp = []
+        for i in range(3):
+            Xsp.append(np.linspace(xmin[i], xmax[i], (xmax[i] - xmin[i]) / dx[i] + 1))
+
+        try:
+            gx, gy, gz = np.meshgrid(Xsp[0], Xsp[1], Xsp[2])
+        except MemoryError:
+            print('Error : The array you want to create is too big !')
+            return
+
+        if quantity == 'density':
+            res = self.evaluate_density(gx, gy, gz)
+        elif quantity == 'forceR':
+            res = self.evaluate_forceR(gx, gy, gz)
+        elif quantity == 'forceV':
+            res = self.evaluate_forceV(gx, gy, gz)
+        else:
+            res = self.evaluate_potential(gx, gy, gz)
+            
+        return gx, gy, gz, res
+        
+        
 
     
 

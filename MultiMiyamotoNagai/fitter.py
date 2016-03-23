@@ -2,7 +2,7 @@ import sys
 
 import corner
 import emcee
-import matplotlib.pyplot as pl
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as op
 from matplotlib.ticker import MaxNLocator
@@ -94,54 +94,6 @@ class MMNFitter(object):
         self.n_values = self.data.shape[0]
         self.yerr = 0.01*np.random.rand(self.n_values)
 
-    def sMN(self, models=(), fit_type=None):
-        """
-        Sums the values of the different Miyamoto on a set of points
-        The type of value summed depends on the fit we want to realize
-        :param models: the list of models we are summing. If none the models of the instance are taken
-        :param fit_type: the type of fit we are doing. Can be "potential", "density", "force" or None. If None then
-        the default fit_type of the instance is taken
-        :return: a scalar, the total sum of all the models on all points
-        """
-        if len(models) == 0:
-            models = self.models
-
-        if not fit_type:
-            fit_type = self.fit_type
-
-        # We pick the function to apply according to the fit model
-        if fit_type == 'density':
-            eval_func = MMNModel.mn_density
-        elif fit_type == 'potential':
-            eval_func = MMNModel.mn_potential
-        else:
-            eval_func = MMNModel.mn_force
-
-        # The positions of the points
-        x = self.data[:, 0]
-        y = self.data[:, 1]
-        z = self.data[:, 2]
-
-        # Radius on each plane
-        rxy = np.sqrt(x**2+y**2)
-        rxz = np.sqrt(x**2+z**2)
-        ryz = np.sqrt(y**2+z**2)
-
-        total_sum = 0.0
-
-        # Summing on each model
-        for id_mod, axis in enumerate(self.axes):
-            a, b, M = models[id_mod*3:(id_mod+1)*3]
-            if axis == "x":
-                value = eval_func(ryz, x, a, b, M)
-            elif axis == "y":
-                value = eval_func(rxz, y, a, b, M)
-            else:
-                value = eval_func(rxy, z, a, b, M)
-
-            total_sum += value
-        return total_sum
-
     def loglikelihood(self, models):
         """
         This function computes the loglikelihood of the
@@ -154,12 +106,18 @@ class MMNFitter(object):
         # Checking that a+b > 0 for every model :
         for id_mod, axis in enumerate(self.axes):
             a, b, M = models[id_mod*3:(id_mod+1)*3]
+
+            # Blocking the walkers to go in "forbidden zones" : negative disk height, negative Mass, and a+b < 0
+            if b < 0:
+                return -np.inf
+
+            if M < 0:
+                return -np.inf
+            
             if a+b < 0:
                 return -np.inf
 
-            # If we are checking for positive-definiteness we add the disk to the model
-            if self.check_DP:
-                tmp_model.add_model(axis, a, b, M)
+            tmp_model.add_model(axis, a, b, M)
 
         # Now checking for positive-definiteness:
         if self.check_DP:
@@ -168,10 +126,12 @@ class MMNFitter(object):
 
         # Everything ok, we proceed with the likelihood :
         p = self.data[:, 3]
-        model = self.sMN(models)
+        model = tmp_model.evaluate_density(self.data[:, 0], self.data[:, 1], self.data[:, 2]) # TODO generalize to other quantities
         inv_sigma2 = 1.0/(self.yerr**2)
-        return -0.5*(np.sum((p-model)**2*inv_sigma2-np.log(inv_sigma2)))
+        return -0.5*(np.sum((p-model)**2*inv_sigma2))
 
+
+    
     def maximum_likelihood(self, models):
         """
         Computation of the maximum of likelihood of the models
@@ -201,7 +161,7 @@ class MMNFitter(object):
         # Storing the best values as current models
         self.models = values
 
-    def fit_data(self, burnin=100, x0=None, x0_range=1e-4):
+    def fit_data(self, burnin=100, x0=None, x0_range=1e-4, plot_freq=0, plot_ids=[]):
         """
         This function finds the parameters of the models using emcee
         :param burnin: the number of timesteps to keep after running emcee
@@ -225,7 +185,49 @@ class MMNFitter(object):
 
         global sampler
         sampler = emcee.EnsembleSampler(self.n_walkers, self.ndim, self.loglikelihood, threads=self.n_threads)
-        sampler.run_mcmc(init_pos, self.n_steps, rstate0=np.random.get_state())
+
+        # Plot the chains regularly to see if the system has converged
+        if plot_freq > 0:
+            # Making sure we can plot what's asked (no more than three disks)
+            if plot_ids == []:
+                plot_ids = list(range(min(len(self.axes), 3)))
+            nplots = len(plot_ids)
+            
+            cur_step = 0
+            pos = init_pos
+            while cur_step < self.n_steps:
+                if self.verbose:
+                    sys.stdout.write('\r  . Step : {0}/{1}'.format(cur_step+1, self.n_steps))
+                    sys.stdout.flush()
+                pos, prob, state = sampler.run_mcmc(pos, plot_freq, rstate0=np.random.get_state())
+                cur_step += plot_freq
+                
+
+                # Now plotting
+                fig, axes = plt.subplots(nplots, 3, sharex=True, figsize=(8, 9))
+                
+                for disk_id in plot_ids:
+                    axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[disk_id]]
+                    param_name = ['a', 'b', 'M']
+                    for i in range(3):
+                        pid = disk_id*3+i
+                        samples = sampler.chain[:,:,pid].T
+                        if nplots > 1:
+                            axis = axes[disk_id][i]
+                        else:
+                            axis = axes[i]
+                        
+                        axis.plot(samples, color='k', alpha=0.4)
+                        axis.yaxis.set_major_locator(MaxNLocator(5))
+                        axis.set_ylabel('$'+param_name[i]+'_{{{0}{1}}}$'.format(axis_name, disk_id))
+                        
+                fig.savefig('current_chain.png')
+                plt.close()
+            if self.verbose:           
+                print('\r  . Step : {0}/{1}'.format(self.n_steps, self.n_steps))
+        else:
+            sampler.run_mcmc(init_pos, self.n_steps, rstate0=np.random.get_state())    
+
 
         # Storing the last burnin results
         self.samples = sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
@@ -249,7 +251,7 @@ class MMNFitter(object):
             print('Warning : Some sample results are not positive definite ! You can end up with negative densities')
             print('To ensure a positive definite model, consider setting the parameter "check_positive_definite" to True in the fitter !')
                   
-        return self.samples
+        return self.samples, sampler.lnprobability
 
     def plot_disk_walkers(self, id_mod):
         """
@@ -257,7 +259,7 @@ class MMNFitter(object):
         :param id_mod: the id of the disk parameters you want to plot
         """
         axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[id_mod]]
-        fig, axes = pl.subplots(3, 1, sharex=True, figsize=(8, 9))
+        fig, axes = plt.subplots(3, 1, sharex=True, figsize=(8, 9))
         axes[0].plot(sampler.chain[:, :, 0].T, color="k", alpha=0.4)
         axes[0].yaxis.set_major_locator(MaxNLocator(5))
         axes[0].axhline(self.models[id_mod*3], color="#888888", lw=2)
