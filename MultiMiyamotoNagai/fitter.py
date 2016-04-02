@@ -260,17 +260,17 @@ class MMNFitter(object):
         """
         axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[id_mod]]
         fig, axes = plt.subplots(3, 1, sharex=True, figsize=(8, 9))
-        axes[0].plot(sampler.chain[:, :, 0].T, color="k", alpha=0.4)
+        axes[0].plot(sampler.chain[:, :, id_mod*3].T, color="k", alpha=0.4)
         axes[0].yaxis.set_major_locator(MaxNLocator(5))
         axes[0].axhline(self.models[id_mod*3], color="#888888", lw=2)
         axes[0].set_ylabel("$a{0}$".format(axis_name))
 
-        axes[1].plot(sampler.chain[:, :, 1].T, color="k", alpha=0.4)
+        axes[1].plot(sampler.chain[:, :, id_mod*3+1].T, color="k", alpha=0.4)
         axes[1].yaxis.set_major_locator(MaxNLocator(5))
         axes[1].axhline(self.models[id_mod*3+1], color="#888888", lw=2)
         axes[1].set_ylabel("$b{0}$".format(axis_name))
 
-        axes[2].plot(sampler.chain[:, :, 2].T, color="k", alpha=0.4)
+        axes[2].plot(sampler.chain[:, :, id_mod*3+2].T, color="k", alpha=0.4)
         axes[2].yaxis.set_major_locator(MaxNLocator(5))
         axes[2].axhline(self.models[id_mod*3+2], color="#888888", lw=2)
         axes[2].set_ylabel("$M{0}$".format(axis_name))
