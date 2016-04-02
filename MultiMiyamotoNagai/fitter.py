@@ -41,7 +41,7 @@ class MMNFitter(object):
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """
-    def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=120, fit_type='potential', check_positive_definite=False, verbose=True):
+    def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=120, fit_type='density', check_positive_definite=False, verbose=True):
         """
         Constructor for the MultiMiyamotoNagai fitter. The fitter is based on emcee.
 
@@ -126,10 +126,10 @@ class MMNFitter(object):
 
         # Everything ok, we proceed with the likelihood :
         p = self.data[:, 3]
-        model = tmp_model.evaluate_density(self.data[:, 0], self.data[:, 1], self.data[:, 2]) # TODO generalize to other quantities
+        quantity_callback = MMNModel.callback_from_string(self.fit_type)
+        model = tmp_model._evaluate_quantity(self.data[:, 0], self.data[:, 1], self.data[:, 2], quantity_callback)
         inv_sigma2 = 1.0/(self.yerr**2)
         return -0.5*(np.sum((p-model)**2*inv_sigma2))
-
 
     
     def maximum_likelihood(self, models):

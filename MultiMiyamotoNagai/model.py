@@ -55,6 +55,18 @@ class MMNModel(object):
         return res
 
     @staticmethod
+    def callback_from_string(quantity):
+        """
+        REturns the static function callback associated to a given quantity string 
+        """
+        cb_from_str = {'density' : MMNModel.mn_density,
+                       'forceR' : MMNModel.mn_forceR,
+                       'forceV' : MMNModel.mn_forceV,
+                       'potential' : MMNModel.mn_potential}
+
+        return cb_from_str[quantity]
+
+    @staticmethod
     def mn_density(r, z, a, b, Mo):
         """
         Returns the Miyamoto Nagai density at polar coordinates (r, z).
@@ -183,15 +195,16 @@ class MMNModel(object):
         else:
             total_sum = quantity_callback(rxy, z, a, b, M)
 
-        for id_mod, axis in enumerate(self.axes[1:]):
+        id_mod = 1
+        for axis in self.axes[1:]:
             a, b, M = self.models[id_mod*3:(id_mod+1)*3]
-            axis = self.axes[id_mod]
             if axis == "x":
                 total_sum += quantity_callback(ryz, x, a, b, M)
             elif axis == "y":
                 total_sum += quantity_callback(rxz, y, a, b, M)
             else:
                 total_sum += quantity_callback(rxy, z, a, b, M)
+            id_mod += 1
         return total_sum
 
 
