@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     # Application name:
-    name="Multi Miyamoto Nagai",
+    name="MNn",
 
     # Version number (initial):
     version="0.1.0",
@@ -12,18 +12,18 @@ setup(
     author_email="ozomatli@telmexmail.com",
 
     # Packages
-    packages=['MultiMiyamotoNagai', 'MultiMiyamotoNagai.examples'],
-    package_dir={'MultiMiyamotoNagai': 'MultiMiyamotoNagai', 'MultiMiyamotoNagai.examples': 'MultiMiyamotoNagai/examples'},
-    package_data={'MultiMiyamotoNagai.examples': ['density.dat']},
+    packages=['mnn', 'mnn.examples'],
+    package_dir={'mnn': 'mnn', 'mnn.examples': 'mnn/examples'},
+    package_data={'mnn.examples': ['density.dat']},
 
     # Details
-    url="http://www.github.com",
+    url="http://www.github.com/mdelorme/MNn",
 
     # Requirements
     install_requires=['numpy', 'emcee', 'corner'],
 
     # Misc
     license="BSD",
-    description="An analytical Multi Miyamoto Nagai model for galactic potential, density and forces evaluation.",
+    description="An analytical sum of Miyamoto-Nagai-negative model for galactic potential, density and forces evaluation.",
     #long_description=open("README.txt").read(),
 )

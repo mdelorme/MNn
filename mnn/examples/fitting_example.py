@@ -1,10 +1,10 @@
-from MultiMiyamotoNagai.fitter import MMNFitter
+from mnn.fitter import MNnFitter
 
 if __name__ == '__main__':
-    print(' -- Multi Miyamoto Nagai model examples --')
+    print(' -- Miyamoto Nagai negative model examples --')
 
     print('Test : Fitting data to models :')
-    fitter = MMNFitter(n_walkers=100, n_steps=1000, fit_type='density')
+    fitter = MNnFitter(n_walkers=100, n_steps=1000, fit_type='density')
 
     # Loading the data we want to fit against
     fitter.load_data('density.dat')

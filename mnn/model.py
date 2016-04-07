@@ -2,7 +2,7 @@ from __future__ import print_function
 import scipy.optimize as op
 import numpy as np
 
-class MMNModel(object):
+class MNnModel(object):
     """
     This object creates a model comprised of multiple Miyamoto Nagai disks fitting a given potential.
     """
@@ -59,10 +59,10 @@ class MMNModel(object):
         """
         REturns the static function callback associated to a given quantity string 
         """
-        cb_from_str = {'density' : MMNModel.mn_density,
-                       'forceR' : MMNModel.mn_forceR,
-                       'forceV' : MMNModel.mn_forceV,
-                       'potential' : MMNModel.mn_potential}
+        cb_from_str = {'density' : MNnModel.mn_density,
+                       'forceR' : MNnModel.mn_forceR,
+                       'forceV' : MNnModel.mn_forceV,
+                       'potential' : MNnModel.mn_potential}
 
         return cb_from_str[quantity]
 
@@ -212,61 +212,61 @@ class MMNModel(object):
         """
         Returns the summed potential of all the disks at a specific point. xyz can be scalars or a vector
         """
-        return self._evaluate_quantity(x, y, z, MMNModel.mn_potential)
+        return self._evaluate_quantity(x, y, z, MNnModel.mn_potential)
 
     def evaluate_potential_vec(self, x):
         """
         Returns the summed potential of all the disks at a specific point. x is a Nx3 array
         """
-        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MMNModel.mn_potential)
+        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_potential)
 
     def evaluate_density(self, x, y, z):
         """
         Returns the summed density of all the disks at a specific point. xyz can be scalars or a vector
         """
-        return self._evaluate_quantity(x, y, z, MMNModel.mn_density)
+        return self._evaluate_quantity(x, y, z, MNnModel.mn_density)
 
     def evaluate_density_vec(self, x):
         """
         Returns the summed density of all the disks at a specific point. x if a Nx3 array
         """
-        return self._evaluate_quantity(x[0], x[1], x[2], MMNModel.mn_density)
+        return self._evaluate_quantity(x[0], x[1], x[2], MNnModel.mn_density)
 
     def evaluate_density_axis(self, r, axis):
         if axis == 'x':
-            return self._evaluate_quantity(r, 0, 0, MMNModel.mn_density)
+            return self._evaluate_quantity(r, 0, 0, MNnModel.mn_density)
         if axis == 'y':
-            return self._evaluate_quantity(0, r, 0, MMNModel.mn_density)
+            return self._evaluate_quantity(0, r, 0, MNnModel.mn_density)
         else:
-            return self._evaluate_quantity(0, 0, r, MMNModel.mn_density)
+            return self._evaluate_quantity(0, 0, r, MNnModel.mn_density)
 
     def evaluate_forceR(self, x, y, z):
         """
         Returns the summed force of all the disks at a specific point. xyz can be scalars or a vector
         """
-        return self._evaluate_quantity(x, y, z, MMNModel.mn_forceR)
+        return self._evaluate_quantity(x, y, z, MNnModel.mn_forceR)
 
     def evaluate_forceR_vec(self, x):
         """
         Returns the summed force of all the disks at a specific point. x is a Nx3 array
         """
-        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MMNModel.mn_forceR)
+        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_forceR)
 
     def evaluate_forceV(self, x, y, z):
         """
         Returns the summed force of all the disks at a specific point. xyz can be scalars or a vector
         """
-        return self._evaluate_quantity(x, y, z, MMNModel.mn_forceV)
+        return self._evaluate_quantity(x, y, z, MNnModel.mn_forceV)
 
     def evaluate_forceV_vec(self, x):
         """
         Returns the summed force of all the disks at a specific point. xyz can be scalars or a vector
         """
-        return self._evaluate_quantity(x[0], x[1], x[2], MMNModel.mn_forceV)
+        return self._evaluate_quantity(x[0], x[1], x[2], MNnModel.mn_forceV)
 
     def evaluate_circular_velocity(self, x, y, z):
         
-        return self._evaluate_quantity(x, y, z, MMNModel.mn_circular_velocity)        
+        return self._evaluate_quantity(x, y, z, MNnModel.mn_circular_velocity)        
 
     def is_positive_definite(self):
         """

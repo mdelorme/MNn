@@ -7,12 +7,12 @@ import numpy as np
 import scipy.optimize as op
 from matplotlib.ticker import MaxNLocator
 
-from model import MMNModel
+from model import MNnModel
 
 # Thanks to Steven Bethard for this nice trick, found on :
 # https://bytes.com/topic/python/answers/552476-why-cant-you-pickle-instancemethods
 
-# Allows the methods of MMNFitter to be pickled for multiprocessing
+# Allows the methods of MNnFitter to be pickled for multiprocessing
 import copy_reg
 import types
 
@@ -37,7 +37,7 @@ copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 sampler = None
 
 
-class MMNFitter(object):
+class MNnFitter(object):
     """
     This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
     """
@@ -101,7 +101,7 @@ class MMNFitter(object):
         :return: the loglikelihood of the sum of models
         """
 
-        tmp_model = MMNModel()
+        tmp_model = MNnModel()
         
         # Checking that a+b > 0 for every model :
         for id_mod, axis in enumerate(self.axes):
@@ -126,7 +126,7 @@ class MMNFitter(object):
 
         # Everything ok, we proceed with the likelihood :
         p = self.data[:, 3]
-        quantity_callback = MMNModel.callback_from_string(self.fit_type)
+        quantity_callback = MNnModel.callback_from_string(self.fit_type)
         model = tmp_model._evaluate_quantity(self.data[:, 0], self.data[:, 1], self.data[:, 2], quantity_callback)
         inv_sigma2 = 1.0/(self.yerr**2)
         return -0.5*(np.sum((p-model)**2*inv_sigma2))
@@ -238,7 +238,7 @@ class MMNFitter(object):
         # Checking for positive-definiteness
         everything_dp = True
         for sample in self.samples:
-            tmp_model = MMNModel()
+            tmp_model = MNnModel()
             for id_mod, axis in enumerate(self.axes):
                   a, b, M = sample[id_mod*3:(id_mod+1)*3]
                   tmp_model.add_model(axis, a, b, M)
@@ -335,7 +335,7 @@ class MMNFitter(object):
             print('Error : No data loaded in the fitter ! You need to call "load_data" first')
 
         # Creating the model object from the parameters
-        mmn = MMNModel()
+        mmn = MNnModel()
         for id_mod, axis in enumerate(self.axes):
             mmn.add_model(axis, *model[id_mod*3:(id_mod+1)*3])
 
