@@ -1,8 +1,11 @@
 Miyamoto-Nagai negative
 =======================
 
-The idea
---------
+Here : explain why the model is upra-dupra awesome
 
-Building mass models of galaxies has a long and rich history. 
+  1. Why ?
+  2. What is it doing ?
+  3. How ?
+  4. Limitations
+
 
