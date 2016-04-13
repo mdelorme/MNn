@@ -8,7 +8,7 @@ Simple model
 ------------
 
 First and foremost, let's create a simple model with only one Miyamoto Nagai disc.
-The disc will be aligned with the $xy$ plane (thus the axis will be ``z``), and will have the following parameters : ``a=1.0``, ``b=10.0``, ``M=100.0``.
+The disc will be aligned with the xy plane (thus the axis will be ``z``), and will have the following parameters : ``a=1.0``, ``b=10.0``, ``M=100.0``.
 
 The first step is to import and instantiate the :class:`~mnn.model.MNnModel` class that represents our model :
 
@@ -46,7 +46,7 @@ We can also use the :func:`~mnn.model.MNnModel.evaluate_density_vec` method of :
 >>> model.evaluate_potential_vec(p)
 array([-0.03827302, -0.03559385])
 
-Once the model is completed, you can generate a meshgrid of data. For instance, let's generate and plot a slice of the xz plane at ``y=0``, and for x in $[0, 30]$ and z in $[-10, 10]$. To do this, we need to define a mesh size. We will make cells $0.1$ units wide.
+Once the model is completed, you can generate a meshgrid of data. For instance, let's generate and plot a slice of the xz plane at ``y=0``, and for x in [0, 30] and z in [-10, 10]. To do this, we need to define a mesh size. We will make cells 0.1 units wide.
 
 >>> x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (0.1, 0.1, 0.1))
 >>> plt.imshow(v[0].T)
