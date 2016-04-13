@@ -1,5 +1,4 @@
 import sys
-
 import corner
 import emcee
 import matplotlib.pyplot as plt
@@ -7,11 +6,10 @@ import numpy as np
 import scipy.optimize as op
 from matplotlib.ticker import MaxNLocator
 
-from model import MNnModel
+from .model import MNnModel, MNnError
 
 # Thanks to Steven Bethard for this nice trick, found on :
 # https://bytes.com/topic/python/answers/552476-why-cant-you-pickle-instancemethods
-
 # Allows the methods of MNnFitter to be pickled for multiprocessing
 import copy_reg
 import types
@@ -36,27 +34,38 @@ copy_reg.pickle(types.MethodType, _pickle_method, _unpickle_method)
 
 sampler = None
 
-
 class MNnFitter(object):
-    """
-    This class is used to fit a certain Multi Miyamoto Nagai model (with a predefined number of disks) to a datafile.
-    """
-    def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=120, fit_type='density', check_positive_definite=False, verbose=True):
-        """
-        Constructor for the MultiMiyamotoNagai fitter. The fitter is based on emcee.
+    """ 
+    Miyamoto-Nagai negative fitter.
 
-        :param n_walkers: emcee parameter to indicate how many parallel walkers the MCMC will use to fit the data
-        :param n_steps: How many steps should the MCMC method proceed before stopping
-        :param random_seed: A seed used to generate the initial positions of the walkers
+    This class is used to fit the parameters of a Miyamoto-Nagai negative model to data. 
+    (with a predefined number of discs) to a datafile.
+    """
+    def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=123,
+                 fit_type='density', check_positive_definite=False, verbose=False):
+        """ Constructor for the Miyamoto-Nagai negative fitter. The fitting is based on ``emcee``.
+
+        Args:
+            n_walkers (int): How many parallel walkers ``emcee`` will use to fit the data (default=100).
+            n_step (int): The number of steps every walker should perform before stopping (default=1000).
+            n_threads (int): Number of threads used to fit the data (default=1).
+            random_seed (int): The random seed used for the fitting (default=123).
+            fit_type ({'density', 'potential'}): What type of data is fitted (default='density').
+            check_positive_definite (bool): Should the algorithm check if every walker is positive definite at every step ?
+            verbose (bool): Should the program output additional information (default=False).
+
+        Note:
+            Using ``check_positive_definite=True`` might guarantee that the density will be always positive. But
+            this takes a toll on the computation. We advise to fit the data with ``check_positive_definite=False``.
+            If the result is not definite positive, then switch this flag on and re-do the fitting.
         """
         self.n_walkers = n_walkers
         self.n_steps = n_steps
         self.n_threads = n_threads
 
         # The fitted models
-        self.samples = ()
-        self.quantiles = None
-        self.models = None
+        self.samples = None
+        self.discs = None
         self.axes = None
         self.ndim = 0
         self.fit_type = fit_type
@@ -70,44 +79,53 @@ class MNnFitter(object):
         self.verbose = verbose
         self.check_DP = check_positive_definite
         if self.check_DP and self.verbose:
-            print('Warning : Checking for definite-positiveness at every walker step. This ensures that the end model will be definite positive but' +
+            print('Warning : Checking for definite-positiveness at every walker step. ' +
+                  'This ensures that the end model will be definite positive but' +
                   'might take a very long time to compute !')
 
         np.random.seed(random_seed)
 
     def set_model_type(self, nx=0, ny=0, nz=1):
-        """
-        Defines the type of model we are trying to fit
-        :param nx: Number of disks on the yz plane
-        :param ny: Number of disks on the xz plane
-        :param nz: Number of disks on the xy plane
+        """ Defines the type of Miyamoto-nagai negative model that will be fitted
+
+        This method allows to set the number of discs available to put in the model along each plane.
+
+        Args:
+            nx (int): Number of discs on the yz plane (default=0).
+            ny (int): Number of discs on the xz plane (default=0).
+            nz (int): Number of discs on the xy plane (default=1).
         """
         self.ndim = (nx+ny+nz)*3
         self.axes = ['x']*nx + ['y']*ny + ['z']*nz
 
     def load_data(self, filename):
-        """
-        Loads the data that needs to be fitted. The data should be in an ascii file with four columns : X Y Z potential
-        :param filename: The filename to open
+        """ Loads the data that will be fitted to the model. 
+
+        The data should be in an ascii file with four columns tab or space separated : X Y Z quantity
+
+        Args:
+            filename (string): The filename to open.
         """
         self.data = np.loadtxt(filename)
         self.n_values = self.data.shape[0]
         self.yerr = 0.01*np.random.rand(self.n_values)
 
-    def loglikelihood(self, models):
-        """
-        This function computes the loglikelihood of the
-        :param models: the list of models
-        :return: the loglikelihood of the sum of models
-        """
+    def loglikelihood(self, discs):
+        """ Computes the log likelihood of a given model
 
+        Args:
+            discs (tuple): the list of parameters for the model stored in a flat-tuple (a1, b1, M1, a2, b2, ...)
+
+        Returns:
+            The loglikelihood of the model given in parameter
+        """
         tmp_model = MNnModel()
         
         # Checking that a+b > 0 for every model :
-        for id_mod, axis in enumerate(self.axes):
-            a, b, M = models[id_mod*3:(id_mod+1)*3]
+        for id_disc, axis in enumerate(self.axes):
+            a, b, M = discs[id_disc*3:(id_disc+1)*3]
 
-            # Blocking the walkers to go in "forbidden zones" : negative disk height, negative Mass, and a+b < 0
+            # Blocking the walkers to go in "forbidden zones" : negative disc height, negative Mass, and a+b < 0
             if b < 0:
                 return -np.inf
 
@@ -117,7 +135,7 @@ class MNnFitter(object):
             if a+b < 0:
                 return -np.inf
 
-            tmp_model.add_model(axis, a, b, M)
+            tmp_model.add_disc(axis, a, b, M)
 
         # Now checking for positive-definiteness:
         if self.check_DP:
@@ -132,52 +150,77 @@ class MNnFitter(object):
         return -0.5*(np.sum((p-model)**2*inv_sigma2))
 
     
-    def maximum_likelihood(self, models):
-        """
-        Computation of the maximum of likelihood of the models
+    def maximum_likelihood(self, discs):
+        """ Computation of the maximum likelihood for a given model and stores them in ``MNnFitter.model``
+
+        The calculation is based on scipy optimization routines to maximize the likelihood of the model.
+
+        Args:
+            discs (tuple): the initial guess for the values of the parameters stored in a flat-tuple (a1, b1, M1, a2, b2, ...)
+        Returns:
+            The parameters corresponding to the maximized chi-square log likelihood
         """
         if self.verbose:
             print("Computing maximum of likelihood")
 
-        # Optimizing the parameters of the models to minimize the loglikelihood
-        chi2 = lambda m: -2 * self.loglikelihood(m)
-        result = op.minimize(chi2, models)
+        # Optimizing the parameters of the model to minimize the loglikelihood
+        chi2 = lambda m: -2.0 * self.loglikelihood(m)
+        result = op.minimize(chi2, discs)
         values = result["x"]
 
         if self.verbose:
             print("Maximum of likelihood results :")
 
             axis_stat = {"x": [1, "yz"], "y": [1, "xz"], "z": [1, "xy"]}
-            for id_mod, axis in enumerate(self.axes):
+            for id_disc, axis in enumerate(self.axes):
                 stat = axis_stat[axis]
                 axis_name = "{0}{1}".format(stat[1], stat[0])
 
-                print("a{0} = {1}".format(axis_name, values[id_mod*3]))
-                print("b{0} = {1}".format(axis_name, values[id_mod*3+1]))
-                print("M{0} = {1}".format(axis_name, values[id_mod*3+2]))
+                print("a{0} = {1}".format(axis_name, values[id_disc*3]))
+                print("b{0} = {1}".format(axis_name, values[id_disc*3+1]))
+                print("M{0} = {1}".format(axis_name, values[id_disc*3+2]))
 
                 stat[0] += 1
 
-        # Storing the best values as current models
-        self.models = values
+        return values, self.loglikelihood(values)
 
     def fit_data(self, burnin=100, x0=None, x0_range=1e-4, plot_freq=0, plot_ids=[]):
-        """
-        This function finds the parameters of the models using emcee
-        :param burnin: the number of timesteps to keep after running emcee
-        :returns: A list of all the samples truncated to give only from the burning timestep
+        """ Runs ``emcee`` to fit the model to the data. 
+
+        Fills the :data:`mnn.fitter.sampler` object with the putative models and returns the burned-in data. The walkers are initialized
+        randomly around position `x0` with a maximum dispersion of `x0_range`. This ball is the initial set of solutions and should be
+        centered on the initial guess of what the parameters are. 
+
+        Args:
+            burnin (int): The number of timesteps to remove from every walker after the end (default=100).
+            x0 (numpy array): The initial guess for the solution (default=None). If None, then x0 is determined randomly.
+            x0_range (float): The radius of the inital guess walker ball (default=1e-4)
+            plot_freq (int): The frequency at which the system outputs control plot (default=0). If 0, then the system does not plot anything until the end.
+            plot_ids (array): The id of the discs to plot during the control plots (default=[]). If empty array, then every disc is plotted.
+
+        Returns: 
+            A tuple containing
+            
+            - **samples** (numpy array): A 2D numpy array holding every parameter value for every walker after timestep ``burnin``
+            - **lnprobability** (numpy array): The samplers pointer to the matrix value of the log likelihood produced by each walker at every timestep after ``burnin``
+
+        Raises:
+            MNnError: If the user tries to fit the data without having called :func:`~mnn.fitter.MNnFitter.load_data` before.
+
+        Note:
+            The plots are outputted in the folder where the script is executed, in the file ``current_state.png``.
         """
 
         # We initialize the positions of the walkers by adding a small random component to each parameter
         if x0 == None:
-            self.models = np.random.rand(self.ndim)
+            self.model = np.random.rand(self.ndim)
         else:
             if x0.shape != (self.ndim,):
-                print("Warning : The shape given for the initial guess ({0}) is not compatible with the models ({1})".format(
+                print("Warning : The shape given for the initial guess ({0}) is not compatible with the model ({1})".format(
                     x0.shape, (self.ndim,)))
-            self.models = x0
+            self.model = x0
             
-        init_pos = [self.models + x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
+        init_pos = [self.model + x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
 
         # Running the MCMC to get the parameters
         if self.verbose:
@@ -188,10 +231,9 @@ class MNnFitter(object):
 
         # Plot the chains regularly to see if the system has converged
         if plot_freq > 0:
-            # Making sure we can plot what's asked (no more than three disks)
+            # Making sure we can plot what's asked (no more than three discs)
             if plot_ids == []:
-                plot_ids = list(range(min(len(self.axes), 3)))
-            nplots = len(plot_ids)
+                plot_ids = list(range(len(self.axes)))
             
             cur_step = 0
             pos = init_pos
@@ -201,27 +243,10 @@ class MNnFitter(object):
                     sys.stdout.flush()
                 pos, prob, state = sampler.run_mcmc(pos, plot_freq, rstate0=np.random.get_state())
                 cur_step += plot_freq
-                
 
-                # Now plotting
-                fig, axes = plt.subplots(nplots, 3, sharex=True, figsize=(8, 9))
-                
-                for disk_id in plot_ids:
-                    axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[disk_id]]
-                    param_name = ['a', 'b', 'M']
-                    for i in range(3):
-                        pid = disk_id*3+i
-                        samples = sampler.chain[:,:,pid].T
-                        if nplots > 1:
-                            axis = axes[disk_id][i]
-                        else:
-                            axis = axes[i]
-                        
-                        axis.plot(samples, color='k', alpha=0.4)
-                        axis.yaxis.set_major_locator(MaxNLocator(5))
-                        axis.set_ylabel('$'+param_name[i]+'_{{{0}{1}}}$'.format(axis_name, disk_id))
-                        
-                fig.savefig('current_chain.png')
+                # Plotting the intermediate result
+                fig = self.plot_disc_walkers(plot_ids)
+                fig.savefig('current_state.png')
                 plt.close()
             if self.verbose:           
                 print('\r  . Step : {0}/{1}'.format(self.n_steps, self.n_steps))
@@ -230,60 +255,86 @@ class MNnFitter(object):
 
 
         # Storing the last burnin results
-        self.samples = sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
+        samples = sampler.chain[:, burnin:, :].reshape((-1, self.ndim))
+        lnprob = sampler.lnprobability[:, burnin:].reshape((-1))
 
         if self.verbose:
             print("Done.")
 
         # Checking for positive-definiteness
         everything_dp = True
-        for sample in self.samples:
+        for sample in samples:
             tmp_model = MNnModel()
-            for id_mod, axis in enumerate(self.axes):
-                  a, b, M = sample[id_mod*3:(id_mod+1)*3]
-                  tmp_model.add_model(axis, a, b, M)
+            for id_disc, axis in enumerate(self.axes):
+                  a, b, M = sample[id_disc*3:(id_disc+1)*3]
+                  tmp_model.add_disc(axis, a, b, M)
                   
             if not tmp_model.is_positive_definite:
                   everything_dp = False
                   break
                   
         if not everything_dp:
-            print('Warning : Some sample results are not positive definite ! You can end up with negative densities')
-            print('To ensure a positive definite model, consider setting the parameter "check_positive_definite" to True in the fitter !')
-                  
-        return self.samples, sampler.lnprobability
+            warnings.warn('Some sample results are not positive definite ! You can end up with negative densities.\n' +
+                          'To ensure a positive definite model, consider setting the parameter "check_positive_definite" to True in the fitter !')
 
-    def plot_disk_walkers(self, id_mod):
+        self.samples = samples
+        return samples.T, lnprob.T
+
+    def plot_disc_walkers(self, id_discs=None):
+        """ Plotting the walkers on each parameter of a certain disc.
+
+        Args:
+            id_disc (int of list): the ids of the disc parameters you want to plot. If None, all the discs are plotted
+
+        Returns:
+            The matplotlib figure object. You can either plot it or save it.
         """
-        Plotting the walkers on each parameter of a certain model
-        :param id_mod: the id of the disk parameters you want to plot
-        """
-        axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[id_mod]]
-        fig, axes = plt.subplots(3, 1, sharex=True, figsize=(8, 9))
-        axes[0].plot(sampler.chain[:, :, id_mod*3].T, color="k", alpha=0.4)
-        axes[0].yaxis.set_major_locator(MaxNLocator(5))
-        axes[0].axhline(self.models[id_mod*3], color="#888888", lw=2)
-        axes[0].set_ylabel("$a{0}$".format(axis_name))
+        # Making sure we have a list
+        if not id_discs:
+            id_discs = range(len(self.axes))
+        elif type(id_discs) == int:
+            id_discs = [id_discs]
+            
+        nplots = len(id_discs)
+        fig, axes = plt.subplots(nplots, 3, sharex=True)
+                
+        for disc_id in id_discs:
+            axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[disc_id]]
+            param_name = ['a', 'b', 'M']
+            for i in range(3):
+                pid = disc_id*3+i
+                samples = sampler.chain[:,:,pid].T
+                if nplots > 1:
+                    axis = axes[disc_id][i]
+                else:
+                    axis = axes[i]
+                        
+                axis.plot(samples, color='k', alpha=0.4)
+                #axis.yaxis.set_major_locator(MaxNLocator(5))
+                axis.set_ylabel('$'+param_name[i]+'_{{{0}{1}}}$'.format(axis_name, disc_id))
+                axis.set_xlabel('Iteration')
 
-        axes[1].plot(sampler.chain[:, :, id_mod*3+1].T, color="k", alpha=0.4)
-        axes[1].yaxis.set_major_locator(MaxNLocator(5))
-        axes[1].axhline(self.models[id_mod*3+1], color="#888888", lw=2)
-        axes[1].set_ylabel("$b{0}$".format(axis_name))
+        #plt.title('Parameter values for discs : ' + ', '.join(str(x) for x in id_discs))
 
-        axes[2].plot(sampler.chain[:, :, id_mod*3+2].T, color="k", alpha=0.4)
-        axes[2].yaxis.set_major_locator(MaxNLocator(5))
-        axes[2].axhline(self.models[id_mod*3+2], color="#888888", lw=2)
-        axes[2].set_ylabel("$M{0}$".format(axis_name))
-        fig.savefig("Time.png")
+        return fig
 
     def corner_plot(self):
+        """ Computes the corner plot of the fitted data. 
+
+        Note:
+            If this method fails it might mean the fitting has not properly converged yet.
+
+        Returns:
+            The corner plot object.
         """
-        Draws the corner plot of the fitted data
-        """
+        if self.samples == None:
+            warnings.warn('corner_plot should not be called before fit_data !')
+            return
+        
         labels = []
         axis_stat = {"x": [1, "yz"], "y": [1, "xz"], "z": [1, "xy"]}
 
-        for id_mod, axis in enumerate(self.axes):
+        for id_disc, axis in enumerate(self.axes):
             stat = axis_stat[axis]
             axis_name = "{0}{1}".format(stat[1], stat[0])
             labels += ["a{0}".format(axis_name), "b{0}".format(axis_name), "M{0}".format(axis_name)]
@@ -292,52 +343,44 @@ class MNnFitter(object):
         if self.verbose:
             print("Computing corner plot ...")
 
-        figt = corner.corner(self.samples, labels=labels, truths=self.models)
-        figt.savefig("Triangle.png")
+        #figt = corner.corner(self.samples, labels=labels, truths=self.model)
+        figt = corner.corner(sampler.flatchain)
+        return figt
 
-    def compute_quantiles(self, quantiles=(16, 50, 84)):
+    def compute_quantiles(self, samples, quantiles=(16, 50, 84)):
+        """ Finds the quantiles values on the whole sample kept after emcee run. 
+
+        This method computes the values of the parameters of the model at each specified quantile.
+        For instance, if the desired quantiles is only ``(50)``, then the returned array will correspond to the median value for each parameter
+
+        Args:
+            samples (numpy array): The result of fit-data, that will be processed
+            quantiles (tuple): What quantiles are to be computed (default=(16, 50, 84))
+
+        Returns:
+            A numpy array corresponding to the values, for each parameter and for each quantile.
         """
-        Finds the quantiles values on the whole sample kept after emcee run. The results are stored in the quantiles
-        attribute of the class.
-        :param quantiles: a tuple indicating what quantiles are to be computed
-        """
-        if len(quantiles) != 3:
-            sys.stderr.write('Warning : The quantile list should always be a triplet')
-            return
-
-        if len(self.samples) == 0:
-            sys.stderr.write('Warning : You should not run compute_quantiles before fit_data ! Trying to compute quantiles.')
-
-        k = lambda v: (v[1], v[2]-v[1], v[1]-v[0])
-        qarray = np.array(np.percentile(self.samples, quantiles, axis=0))
-        self.quantiles = np.array((qarray[1], qarray[2]-qarray[1], qarray[1]-qarray[0])).T
-
-        if self.verbose:
-            print("MCMC results :")
-            axis_stat = {"x": [1, "yz"], "y": [1, "xz"], "z": [1, "xy"]}
-            for id_mod, axis in enumerate(self.axes):
-                stat = axis_stat[axis]
-                axis_name = "{0}{1}".format(stat[1], stat[0])
-                base_format = "{0} = {1[0]} +: {1[1]} -: {1[2]}"
-                print("a"+base_format.format(axis_name, self.quantiles[id_mod*3], self.quantiles[id_mod*3]))
-                print("b"+base_format.format(axis_name, self.quantiles[id_mod*3+1], self.quantiles[id_mod*3+1]))
-                print("M"+base_format.format(axis_name, self.quantiles[id_mod*3+2], self.quantiles[id_mod*3+2]))
-                stat[0] += 1
-
-        return self.quantiles
+        return np.array(np.percentile(samples, quantiles, axis=1))
 
     def get_residuals(self, model):
-        """
-        Computes the residual between the data and the model you provide as input
-        :param model: A numpy array of Ndisks*3 parameter values
+        """ Computes the residual between the data and the model you provide as input
+        
+        Args:
+            model (numpy array): The Ndiscs*3 parameter values of the model you want to compute the residuals on.
+
+        Returns:
+            A numpy array storing the residual value for every point of the data.
+
+        Raises:
+            MNnError: If the user tries to compute the residual without having called :func:`~mnn.fitter.MNnFitter.load_data` before.
         """
         if self.data == None:
             print('Error : No data loaded in the fitter ! You need to call "load_data" first')
 
         # Creating the model object from the parameters
         mmn = MNnModel()
-        for id_mod, axis in enumerate(self.axes):
-            mmn.add_model(axis, *model[id_mod*3:(id_mod+1)*3])
+        for id_disc, axis in enumerate(self.axes):
+            mmn.add_disc(axis, *model[id_disc*3:(id_disc+1)*3])
 
         # Evaluating the residual :
         result = self.data[:,3] - mmn.evaluate_density(self.data[:,0], self.data[:,1], self.data[:,2])
