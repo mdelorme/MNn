@@ -9,10 +9,10 @@ Welcome to MNn's documentation!
 Miyamoto-Nagai negative model :
 -------------------------------
 
-``MNn`` is a MIT-licensed Python package. Its main purpose is to model galaxies potential and density function by providing a positive-definite potential-density pair expansion based on the Miyamoto-Nagai disc. This package functionality is two-fold :
+``MNn`` is a MIT-licensed Python package. Its main purpose is to model galaxies by providing a positive-definite potential-density pair expansion based on the Miyamoto-Nagai disc. This package functionality is two-fold :
 
-   1. Provide analytical models to represent galaxy potentials and densities
-   2. Provide simple fitting interfaces to build the models from the data.     
+   1. To provide analytical models to represent galaxy potentials and densities ...
+   2. and to provide simple fitting interfaces to build the models from the data.     
 
 This documentation serves as a guide and a reference. Feel free to send comments and remarks to the authors to help us improve the documentation and the package. The code is hosted on `github <https://github.com/mdelorme/MNn>`_.
       
@@ -39,4 +39,4 @@ Contributors
     
 * Code maintainer :
 
-   - `Maxime Delorme <m.delorme@surrey.ac.uk>`_ (University of Surrey)
+  - `Maxime Delorme <m.delorme@surrey.ac.uk>`_ (University of Surrey)

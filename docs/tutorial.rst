@@ -78,7 +78,7 @@ These commands should give the following contour plot :
 Multiple discs and negative scales
 ----------------------------------
 
-The strength of ``MNn`` is to provide a model that sums multiple Miyamoto-Nagai discs, and that some of these models can have a negative disc scale (``a``). Let's create such a model with three discs. for this we can use the previous method :func:`~mnn.model.MNnModel.add_disc` or use a the wrapper :func:`~mnn.model.MNnModel.add_discs`. This wrapper takes a list of discs as we would create them with :func:`~mnn.model.MNnModel.add_disc`.
+The strength of ``MNn`` is to provide a model that sums multiple Miyamoto-Nagai discs, and that some of these models can have a negative disc scale (``a``). Let's create such a model with two discs. for this we can use the previous method :func:`~mnn.model.MNnModel.add_disc` or use a the wrapper :func:`~mnn.model.MNnModel.add_discs`. This wrapper takes a list of discs as we would create them with :func:`~mnn.model.MNnModel.add_disc`.
 
 >>> model = MNnModel()
 >>> discs = (('z', 10.0, 10.0, 100.0), ('y', -7.0, 20.0, 10.0))
