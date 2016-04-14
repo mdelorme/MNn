@@ -362,6 +362,21 @@ class MNnFitter(object):
         """
         return np.array(np.percentile(samples, quantiles, axis=1))
 
+    def make_model(self, model):
+        """ Takes a flattened model as parameter and returns a :class:`mnn.model.MNnModel` object.
+
+        Args: 
+            model (a tuple or a numpy object): The flattened model
+        
+        Returns: 
+            A :class:`mnn.model.MNnModel` instance corresponding to the flattened model
+        """
+        res = MNnModel()
+        for id_disc, axis in enumerate(self.axes):
+            res.add_disc(axis, *model[id_disc*3:(id_disc+1)*3])
+
+        return res
+
     def get_residuals(self, model):
         """ Computes the residual between the data and the model you provide as input
         
