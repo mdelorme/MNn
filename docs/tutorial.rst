@@ -173,6 +173,7 @@ Once the fitter has finished, we can plot the whole chain to see the results :
 You should get a result looking like this :
 
 .. image:: images/tut_chain1.png
+	  
 
 Now the program seems to have converged on a solution. An acceptable solution is the median of the values. What we can do, since
 all the walkers have converged on the same solution and there is no degeneracy is to compute quantiles on the solution, and
@@ -193,8 +194,32 @@ parameters, ``q[1]`` the median and ``q[2]`` the 84% percentile. Let's store the
  ('z', 3.0334881497301636, 3.6413315596626976, 19.619246932879513),
  ('z', 0.23673507131588803, 0.6608545874695207, 4.373688142450103)]
 
- Now, you have an instance of :class:`mnn.model.MNnModel` that you can use as we have seen in the first sections of this tutorial !
+Now, you have an instance of :class:`mnn.model.MNnModel` that you can use as we have seen in the first two sections of this tutorial !
 
+Additional features
+-------------------
+
+
+Corner plots
+^^^^^^^^^^^^
+If you are interested on displaying the corner plots proposed in ``emcee`` you can use the :func:`~mnn.fitter.MNnFitter.corner_plot` method :
+
+>>> fitter.corner_plot(q[1])
+
+Calling this method on the previous example gives us the following plot :
+
+.. image:: images/tut_corner.png
+
+
+Residuals
+^^^^^^^^^	   
+
+The fitter offers the possibility to compute the residuals between a flattened model and your data. To do this, use the method
+:func:`~mnn.fitter.MNnFitter.get_residuals`
+
+>>> fitter.get_residuals(q[1])
+
+These residuals are returned as a numpy array. So you can use ``np.linalg.norm()`` to compute the error on the solution.
 
 This concludes this tutorial. Feel free to browse the :doc:`API </reference>` to find more information and ask your question on the
 `github repository <https://github.com/mdelorme/MNn/>`_.

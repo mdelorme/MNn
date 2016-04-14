@@ -318,11 +318,14 @@ class MNnFitter(object):
 
         return fig
 
-    def corner_plot(self):
+    def corner_plot(self, model=None):
         """ Computes the corner plot of the fitted data. 
 
         Note:
             If this method fails it might mean the fitting has not properly converged yet.
+
+        Args:
+            model (tuple): A flattened model or *None*. If *None* no truth value will be displayed on the plot.
 
         Returns:
             The corner plot object.
@@ -343,8 +346,11 @@ class MNnFitter(object):
         if self.verbose:
             print("Computing corner plot ...")
 
-        #figt = corner.corner(self.samples, labels=labels, truths=self.model)
-        figt = corner.corner(sampler.flatchain)
+        if model != None:
+            figt = corner.corner(self.samples, labels=labels, truths=model)
+        else:
+            figt = corner.corner(self.samples, labels=labels)
+            
         return figt
 
     def compute_quantiles(self, samples, quantiles=(16, 50, 84)):
@@ -393,9 +399,7 @@ class MNnFitter(object):
             print('Error : No data loaded in the fitter ! You need to call "load_data" first')
 
         # Creating the model object from the parameters
-        mmn = MNnModel()
-        for id_disc, axis in enumerate(self.axes):
-            mmn.add_disc(axis, *model[id_disc*3:(id_disc+1)*3])
+        mmn = self.make_model(model)
 
         # Evaluating the residual :
         result = self.data[:,3] - mmn.evaluate_density(self.data[:,0], self.data[:,1], self.data[:,2])
