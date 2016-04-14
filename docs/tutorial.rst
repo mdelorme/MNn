@@ -106,3 +106,96 @@ And :
 Will yield :
 
 .. image:: images/tut_density_contour2.png
+
+
+Fitting Data
+------------
+
+Until now, we have seen how to build a model from scratch and how to use it to produce densities or potential
+values at specific points using :class:`~mnn.model.MNnModel`. It might be complicated to guess automatically
+the parameters of the discs. That's where the second class of ``MNn`` comes into play : :class:`~mnn.fitter.MNnFitter`.
+:class:`~mnn.fitter.MNnFitter` relies on `emcee  <http://dan.iel.fm/emcee/current/>`_ to fit the model to datasets. 
+
+In this example, we are going to fit an exponential disc to a MNn model. The dataset we are using is in the folder
+``examples`` under the name ``density.dat``. First we need to create the fitter object :
+
+>>> from mnn.fitter import MNnFitter
+>>> fitter = MNnFitter(fit_type='density', n_threads=1, n_walkers=100, n_steps=1000, verbose=True)
+
+With this line, we indicate the data we want to fit our model on is a density file. We only use one thread in this example but
+since ``emcee`` is multithreaded, it is possible to set here the number of threads you want to use for the fitting.
+
+Then we define the MCMC parameters : the number of walkers and the number of steps. We start with 100 walkers and 1000 steps to get
+the solution. Sinally we ask the program to give us as much information as it can.
+
+Since we are using a Monte-Carlo method, it is always better to have a first idea of the location of the solution.
+In this case, for the sake of tutorial, we will give a pretty close estimate of the solution as initial guess so we don't
+spend too much time fiddling with the sampler. Of course in *real life situations* you will have to try different solving methods to
+find the good ratio of walkers, iterations, models and initial guess to converge correctly on a adequate solution. But for the moment
+let's learn how to play with the fitter. 
+
+Now we need to load the data in the fitter :
+
+>>> fitter.load_data('density.dat')
+
+.. note:: The data file format must be ascii, with four columns : x y z and the value (here the density). The columns can be space or tab
+   separated.
+
+We have our data, we have the MCMC sampler, we only need to define the form of the model we want to fit. Here, we will use a model with
+three discs aligned on the xy plane. The normal axis is thus ``z`` :
+
+>>> fitter.set_model_type(0, 0, 3)
+
+We have an idea of an initial guess so we can store it in a vector :
+
+>>> initial_guess = np.array((-0.94, 2.80, 2.40, 2.91, 3.64, 19.61, 0.23, 0.67, 4.39))
+
+The list is what we call a flattened model. The first three values will be the parameters of the first disc, the next three the
+second disc and so on. The order for the normal axis is : first all the discs on the x-axis, then all the y-axis and finally all
+the z-axis. For instance, if our model was (2, 3, 1), the six first parameters would correspond to two discs on the yz plane,
+the next nine parameters would be for discs on the xz plane, and finally the last three for a disc on the xy plane.
+
+We can now run the fitter to get an estimate of our parameters :
+
+>>> samples, prob = fitter.fit_data(burnin=400, plot_freq=50)
+
+Here, we indicate that we want to get rid of the 400 first timesteps. Now the 600 timesteps lefts for every walker will be converted in a solution stored in samples. So samples will be a numpy array of dimension 600*100 solutions. Every solution is 9 parameters.
+Going with the array of solutions, the log likelihood of each solution is given in the prob array.
+
+Once the fitter has finished, we can plot the whole chain to see the results :
+
+>>> fitter.plot_disc_walkers()
+>>> plt.show()
+
+.. note:: The method :func:`~mnn.fitter.MNnFitter.plot_disc_walkers` returns a matplotlib figure object. You can save it using
+   the ``savefig`` method of this object.
+
+You should get a result looking like this :
+
+.. image:: images/tut_chain1.png
+
+Now the program seems to have converged on a solution. An acceptable solution is the median of the values. What we can do, since
+all the walkers have converged on the same solution and there is no degeneracy is to compute quantiles on the solution, and
+keep the median solution plus or minus one standard deviation.
+
+>>> q = fitter.compute_quantiles(samples)
+
+.. note:: By default, the :func:`~mnn.fitter.MNnFitter.compute_quantiles` method gives the percentiles at 16, 50 and 84 percents. You
+   can change this by passing a list to the function as the named parameter ``quantiles``. For instance, if we wanted the quartiles
+   we would call the function as follows : ``fitter.compute_quantiles(samples, quantiles=(25, 50, 75))``
+
+The vector ``q`` holds the quantiles for every parameter of the flattened model. So ``q[0]`` will be the 16% percentile for all
+parameters, ``q[1]`` the median and ``q[2]`` the 84% percentile. Let's store the median value in a model and use it :
+
+>>> model = fitter.make_model(q[1])
+>>> model.get_model()
+[('z', -0.764662259246505, 2.778760853324447, 2.7663901965387043),
+ ('z', 3.0334881497301636, 3.6413315596626976, 19.619246932879513),
+ ('z', 0.23673507131588803, 0.6608545874695207, 4.373688142450103)]
+
+ Now, you have an instance of :class:`mnn.model.MNnModel` that you can use as we have seen in the first sections of this tutorial !
+
+
+This concludes this tutorial. Feel free to browse the :doc:`API </reference>` to find more information and ask your question on the
+`github repository <https://github.com/mdelorme/MNn/>`_.
+	  

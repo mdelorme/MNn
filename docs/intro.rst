@@ -36,7 +36,8 @@ In the source folder ::
   python simple_model.py
 
 You should obtain the following result ::
-  
-  0.426348031367
-  -0.0204698154335
-  [ 0.42634803  0.40511442  0.16685496]
+    
+0.0166764804913
+-0.0382730185552
+
+As well as two figures that are explained in the :doc:`tutorial` section.

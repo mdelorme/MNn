@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     # Fitting the data
     fitter.set_model_type(0, 0, 3)
-    samples, prob = fitter.fit_data(plot_freq=50, burnin=300, x0=x0)
+    samples, prob = fitter.fit_data(plot_freq=50, burnin=400, x0=x0)
 
     # Plotting the sampler on every quantity (disk)
     fig = fitter.plot_disc_walkers()

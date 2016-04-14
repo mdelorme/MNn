@@ -1,24 +1,33 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from mnn.model import MNnModel
 
-if __name__ == '__main__':
-    print(' -- Miyamoto Nagai negative model examples --')
+# Single disc
+model = MNnModel()
+model.add_disc('z', 1.0, 10.0, 100.0)
 
-    print('Test : Evaluation of a predefined model :')
-    mnn = MNnModel()
+# Evaluating density and potential :
+print(model.evaluate_density(1.0, 2.0, -0.5))
+print(model.evaluate_potential(1.0, 2.0, -0.5))
 
-    # We add three disks :
-    mnn.add_disc('x', 1.0, 1.0, 2.0)
-    mnn.add_disc('y', 2.0, 0.5, 2.0)
-    mnn.add_disc('z', 0.5, 0.5, 5.0)
+# Using vectors to evaluate density along an axis :
+x = np.linspace(0.0, 30.0, 100.0)
+density = model.evaluate_density(x, 0.0, 0.0)
+fig = plt.plot(x, density)
+plt.show()
 
-    # We evaluate the quantities in a single point :
-    print(mnn.evaluate_density(1.0, 0.0, 0.0))
-    print(mnn.evaluate_potential(0.5, -1.0, 0.2))
+# Plotting density meshgrid
+x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (0.1, 0.1, 0.1))
+fig = plt.imshow(v[0].T)
+plt.show()
 
-    # We evaluate the density in a series of points :
-    x = np.array([1.0, 0.0, 0.0])
-    y = np.array([0.0, 1.0, 0.0])
-    z = np.array([0.0, 0.0, 1.0])
-    print(mnn.evaluate_density(x, y, z))
+# Contour plot
+x = np.arange(0.0, 30.1, 0.1)
+z = np.arange(-10.0, 10.1, 0.1)
+plt.contour(x, z, v[0].T)
+plt.show()
+
+    
+
+    
