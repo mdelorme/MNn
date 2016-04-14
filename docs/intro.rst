@@ -24,6 +24,7 @@ To download the code to a folder use the following command ::
 
 Then install it to your system ::
 
+  cd MNn
   python setup.py install
 
 
@@ -40,4 +41,4 @@ You should obtain the following result ::
 0.0166764804913
 -0.0382730185552
 
-As well as two figures that are explained in the :doc:`tutorial` section.
+As well as three figures that are explained in the :doc:`tutorial` section.
