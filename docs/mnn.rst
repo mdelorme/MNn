@@ -1,9 +1,9 @@
 Miyamoto-Nagai negative
 =======================
 
-Here : explain why the model is upra-dupra awesome
+TODO !
 
-  1. Why ?
+  1. Why we need it ?
   2. What is it doing ?
   3. How ?
   4. Limitations
