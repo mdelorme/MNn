@@ -116,15 +116,53 @@ class MNnModel(object):
         """ Returns the static function callback associated to a given quantity string.
 
         Returns:
-            A function callback : One of the following : :func:`~mnn.model.MNnModel.mn_density`, :func:`~mnn.model.MNnModel.mn_potential`
+            A function callback : One of the following : :func:`~mnn.model.MNnModel.mn_density`, :func:`~mnn.model.MNnModel.mn_potential`, :func:`~mnn.model.MNnModel.mn_force`
         """
         cb_from_str = {'density' : MNnModel.mn_density,
-                       'potential' : MNnModel.mn_potential}
+                       'potential' : MNnModel.mn_potential,
+                       'force' : MNnModel.mn_force}
 
         if not quantity in cb_from_str.keys():
             return MMnModel.mn_density
 
         return cb_from_str[quantity]
+
+    @staticmethod
+    def get_tangent_coordinates(x, y, z, axis):
+        """ Returns the tangent and normal coordinates used in :func:`~mnn.model.MNnModel.mn_force` from a set of cartesian coordinates and an axis.
+        The correspondence between axis and tangent coordinates are the following : 
+
+        +------+----+----+---+
+        | axis | t1 | t2 | n |
+        +======+====+====+===+
+        | x    | y  | z  | x |
+        +------+----+----+---+
+        | y    | x  | z  | y |
+        +------+----+----+---+
+        | z    | x  | y  | z |
+        +------+----+----+---+
+
+        Args:
+            x (float or numpy-array): x coordinate of the points to convert
+            y (float or numpy-array): y coordinate of the points to convert
+            z (float or numpy-array): z coordinate of the points to convert
+            axis ({'x', 'y', 'z'}): the normal axis of the disc
+
+        
+        Returns:
+            A tuple containing three coordinates :
+
+            - **t1** (float or numpy-array): The first tangential coordinate for a disc aligned on ``axis``
+            - **t2** (float or numpy-array): The second tangential coordinate for a disc aligned on ``axis``
+            - **n** (float or numpy-array): The normal component for a disc aligned on ``axis``
+        """
+
+        if axis == 'x':
+            return y, z, x
+        elif axis == 'y':
+            return x, z, y
+        else:
+            return x, y, z
 
     @staticmethod
     def mn_density(r, z, a, b, M):
@@ -180,6 +218,58 @@ class MNnModel(object):
         den = r**2 + (a + h)**2
         return -G*M1 / np.sqrt(den)
 
+    @staticmethod
+    def mn_force(t1, t2, n, a, b, M, axis):
+        """ Evaluates the force of a single Miyamoto-Nagai negative disc (a, b, M) at a set of tangent/radial coordinates.
+
+        Args:
+            t1 (float): first tangent coordinate of the point where the density is evaluated
+            t2 (float): second tangent coordinate of the point where the density is evaluated
+            n (float): height of the point where the density is evaluated
+            a (float): disc scale
+            b (float): disc height
+            Mo (float): disc mass
+            axis ({'x', 'y', 'z'}): the normal axis of the disc
+        
+        Returns:
+           *numpy array* : the force applied at point (r, z) relative to the disc in cartesian coordinates.
+
+        Note:
+            This method does **not** check the validity of the constraints ``b>=0``, ``M>=0``, ``a+b>=0``
+
+        Note:
+            This method relies on user-specified value for the gravitational constant. 
+            This value can be overriden by setting the value :data:`mnn.model.G`.
+
+        Note: 
+            The tangent coordinates allow us to abstract the orientation of the disc to sum everything up for the model.
+            Although it might seem a bit heavy here, it is done to simplify the summation process for the model. Since
+            we require a vector as output we can't use anymore the "simple" cylindrical coordinates.
+
+            The correspondence between axis and tangent coordinates are given in the definition of :func:`~mnn.model.MNnModel.get_tangent_coordinates`
+
+            
+        """
+        num = -G * M
+        R2 = t1**2 + t2**2
+        f1 = np.sqrt(b**2 + n**2)
+        f2 = (a + f1)**2
+        den = (R2 + f2)**1.5
+
+        q1 = num / den
+        f3 = np.sqrt(n**2 + b**2)
+        q2 = (a + f3) / f3 
+
+        # Ordering the result according to the axis so that the coordinates of the disc transforms
+        # correctly into cartesian coordinates.
+        if axis == 'x':
+            return q1 * np.asarray((n*q2, t1, t2))
+        elif axis == 'y':
+            return q1 * np.asarray((t1, n*q2, t2))
+        else:
+            return q1 * np.asarray((t1, t2, n*q2))
+        
+
     # Point evaluation
     def evaluate_potential(self, x, y, z):
         """ Evaluates the summed potential over all discs at specific positions 
@@ -194,7 +284,7 @@ class MNnModel(object):
             If ``x``, ``y`` and ``z`` are numpy arrays, then the return value is a Nx1 value of the potential evaluated 
             at every point ``(x[i], y[i], z[i])``
         """
-        return self._evaluate_quantity(x, y, z, MNnModel.mn_potential)
+        return self._evaluate_scalar_quantity(x, y, z, MNnModel.mn_potential)
 
     
     def evaluate_density(self, x, y, z):
@@ -210,7 +300,42 @@ class MNnModel(object):
             If ``x``, ``y`` and ``z`` are numpy arrays, then the return value is a Nx1 vector of the evaluated potential 
             at every point ``(x[i], y[i], z[i])``
         """
-        return self._evaluate_quantity(x, y, z, MNnModel.mn_density)
+        return self._evaluate_scalar_quantity(x, y, z, MNnModel.mn_density)
+
+    def evaluate_force(self, x, y, z):
+        """ Evaluates the summed force over all discs at specific positions 
+        
+        Args:
+            x, y, z (float or Nx1 numpy array): Cartesian coordinates of the point(s) to evaluate
+           
+        Returns:
+            The summed force over all discs at position ``(x, y, z)``.
+
+        Note:
+            If ``x``, ``y`` and ``z`` are numpy arrays, then the return value is a Nx3 vector of the evaluated potential 
+            at every point ``(x[i], y[i], z[i])``
+        """
+
+        # This is not relying on evaluate_scalar_quantity since the result is a vector and the function signature is not
+        # exactly the same. It is therefore better to have a separate definition instead of adding exceptional cases in the
+        # evaluate_scalar_quantity method.
+
+        # Storing the first value directly as the output variable.
+        # This allows us to avoid testing for scalar or vector
+        # while initializing the total_sum variable
+        a, b, M = self.discs[0:3]
+        axis = self.axes[0]
+        t1, t2, n = self.get_tangent_coordinates(x, y, z, axis)
+        total_sum = self.mn_force(t1, t2, n, a, b, M, axis)
+
+        id_mod = 1
+        for axis in self.axes[1:]:
+            a, b, M = self.discs[id_mod*3:(id_mod+1)*3]
+            t1, t2, n = self.get_tangent_coordinates(x, y, z, axis)
+            total_sum += self.mn_force(t1, t2, n, a, b, M, axis)
+            id_mod += 1
+            
+        return total_sum
 
     # Vector eval
     def evaluate_density_vec(self, x):
@@ -222,7 +347,7 @@ class MNnModel(object):
         Returns:
             The summed density over all discs at every position in vector ``x``.
         """
-        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_density)
+        return self._evaluate_scalar_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_density)
     
     def evaluate_potential_vec(self, x):
         """ Returns the summed potential of all the discs at specific points.
@@ -233,7 +358,19 @@ class MNnModel(object):
         Returns:
             The summed potential over all discs at every position in vector ``x``.
         """
-        return self._evaluate_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_potential)
+        return self._evaluate_scalar_quantity(x[:,0], x[:,1], x[:,2], MNnModel.mn_potential)
+
+    def evaluate_force_vec(self, x):
+        """ Returns the summed force of all the discs at specific points.
+
+        Args:
+            x (Nx3 numpy array): Cartesian coordinates of the point(s) to evaluate
+           
+        Returns:
+            The summed force over all discs at every position in vector ``x``.
+        """
+        return self._evaluate_force(x[:,0], x[:,1], x[:,2])
+    
 
     def is_positive_definite(self):
         """ Returns true if the sum of the discs are positive definite.
@@ -268,14 +405,14 @@ class MNnModel(object):
 
         return True
 
-    def generate_dataset_meshgrid(self, xmin, xmax, dx, quantity='density'):
+    def generate_dataset_meshgrid(self, xmin, xmax, nx, quantity='density'):
         """ Generates a numpy meshgrid of data from the model
         
         Args:
             xmin (3-tuple of floats): The low bound of the box
             xmax (3-tuple of floats): The high bound of the box
-            dx (3-tuple of floats): Mesh spacing in every direction
-            quantity ({'density', 'potential'}) : Type of quantity to fill the box with (default='density')
+            nx (3-tuple of floats): Number of points in every direction
+            quantity ({'density', 'potential', 'force'}) : Type of quantity to fill the box with (default='density')
 
         Returns:
             A 4-tuple containing
@@ -286,25 +423,27 @@ class MNnModel(object):
             MemoryError: If the array is too big
             :class:`mnn.model.MNnError`: If the quantity parameter does not correspond to anything known
         """
-        quantity_vec = ('density', 'potential')
+        quantity_vec = ('density', 'potential', 'force')
         if quantity not in quantity_vec:
             print('Error : Unknown quantity type {0}, possible values are {1}'.format(quantity, quantity_vec))
             return
 
-        if len(xmin) != 3 or len(xmax) != 3 or len(dx) != 3:
-            print('Error : You must provide xmin, xmax and dx as triplets of floats')
+        if len(xmin) != 3 or len(xmax) != 3 or len(nx) != 3:
+            print('Error : You must provide xmin, xmax and nx as triplets of floats')
             return
 
         Xsp = []
         for i in range(3):
-            Xsp.append(np.linspace(xmin[i], xmax[i], (xmax[i] - xmin[i]) / dx[i] + 1))
+            Xsp.append(np.linspace(xmin[i], xmax[i], nx[i]))
 
-        gx, gy, gz = np.meshgrid(Xsp[0], Xsp[1], Xsp[2])
+        gx, gy, gz = np.meshgrid(Xsp[0], Xsp[1], Xsp[2], indexing='ij')
 
         if quantity == 'density':
             res = self.evaluate_density(gx, gy, gz)
         elif quantity == 'potential':
             res = self.evaluate_potential(gx, gy, gz)
+        elif quantity == 'force':
+            res = self.evaluate_force(gx, gy, gz)
         else:
             raise MNnError('Quantity {0} unknown. Cannot fill grid mesh.'.format(quantity))
             
@@ -314,17 +453,17 @@ class MNnModel(object):
     # Axis evaluation, non-documented. Should not be used apart from the is_positive_definite method ! 
     def _evaluate_density_axis(self, r, axis):
         if axis == 'x':
-            return self._evaluate_quantity(r, 0, 0, MNnModel.mn_density)
+            return self._evaluate_scalar_quantity(r, 0, 0, MNnModel.mn_density)
         if axis == 'y':
-            return self._evaluate_quantity(0, r, 0, MNnModel.mn_density)
+            return self._evaluate_scalar_quantity(0, r, 0, MNnModel.mn_density)
         else:
-            return self._evaluate_quantity(0, 0, r, MNnModel.mn_density)
+            return self._evaluate_scalar_quantity(0, 0, r, MNnModel.mn_density)
 
-    def _evaluate_quantity(self, x, y, z, quantity_callback):
+    def _evaluate_scalar_quantity(self, x, y, z, quantity_callback):
         """ Generic private function to evaluate a quantity on the summed discs at a specific point of space.
         this function is private and should be only used indirectly via one of the following 
         :func:`~mnn.model.MNnModel.evaluate_density`, :func:`~mnn.model.MNnModel.evaluate_potential`, 
-        :func:`~mnn.model.MNnModel.evaluate_density_vec`, :func:`~mnn.model.MNnModel.evaluate_potential_vec`, 
+        :func:`~mnn.model.MNnModel.evaluate_density_vec`, :func:`~mnn.model.MNnModel.evaluate_potential_vec`
 
         Args:
             x, y, z (floats or Nx1 numpy arrays): Cartesian coordinates of the point(s) to evaluate

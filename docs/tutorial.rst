@@ -157,7 +157,7 @@ the next nine parameters would be for discs on the xz plane, and finally the las
 
 We can now run the fitter to get an estimate of our parameters :
 
->>> samples, prob = fitter.fit_data(burnin=400, plot_freq=50)
+>>> samples, prob = fitter.fit_data(burnin=400, plot_freq=50, x0=initial_guess)
 
 Here, we indicate that we want to get rid of the 400 first timesteps. Now the 600 timesteps lefts for every walker will be converted in a solution stored in samples. So samples will be a numpy array of dimension 600*100 solutions. Every solution is 9 parameters.
 Going with the array of solutions, the log likelihood of each solution is given in the prob array.
