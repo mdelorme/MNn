@@ -19,13 +19,16 @@ Now we can add a Miyamoto-Nagai disc to the model :
 
 >>> model.add_disc('z', 1.0, 10.0, 100.0)
 
-The model is now ready to use. We can, for instance, retrieve the density and the potential of the model at cartesian coordinates ``(1.0, 2.0, -0.5)`` :
+The model is now ready to use. We can, for instance, retrieve the density, the potential or the force of the model at cartesian coordinates ``(1.0, 2.0, -0.5)`` :
     
 >>> model.evaluate_potential(1.0, 2.0, -0.5)
 -0.038273018555213874
 
 >>> model.evaluate_density(1.0, 2.0, -0.5)
 0.016676480491325717
+
+>>> model.evaluate_force(1.0, 2.0, -0.5)
+[-0.00030309 -0.00060619  0.00016668]
 
 These methods can also be used with vectors. For instance, to evaluate the density along the x-axis, we can do :
 
@@ -40,15 +43,15 @@ You should obtain the following result :
 
 .. image:: images/tut_density1.png
   
-We can also use the :func:`~mnn.model.MNnModel.evaluate_density_vec` method of :class:`~mnn.model.MNnModel` to group the ``x``, ``y``, and ``z`` values in a single numpy array. For instance to evaluate potential over two points ``(1.0, 2.0, -0.5)`` and ``(-5.0, 0.0, 0.0)`` we can use :
+We can also use the :func:`~mnn.model.MNnModel.evaluate_density_vec` method of :class:`~mnn.model.MNnModel` (and the ocrresponding methods for potential and force) to group the ``x``, ``y``, and ``z`` values in a single numpy array. For instance to evaluate potential over two points ``(1.0, 2.0, -0.5)`` and ``(-5.0, 0.0, 0.0)`` we can use :
 
 >>> p = np.array(((2.0, 1.0, -0.5), (-5.0, 0.0, 0.0)))
 >>> model.evaluate_potential_vec(p)
 array([-0.03827302, -0.03559385])
 
-Once the model is completed, you can generate a meshgrid of data. For instance, let's generate and plot a slice of the xz plane at ``y=0``, and for x in [0, 30] and z in [-10, 10]. To do this, we need to define a mesh size. We will make cells 0.1 units wide.
+Once the model is completed, you can generate a meshgrid of data. For instance, let's generate and plot a slice of the xz plane at ``y=0``, and for x in [0, 30] and z in [-10, 10]. To do this, we need to define a mesh size. We will make 300 cells along the x axis, 1 along the y axis and 200 along the z axis.
 
->>> x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (0.1, 0.1, 0.1))
+>>> x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (300, 1, 200))
 >>> plt.imshow(v[0].T)
 >>> plt.show()
 
@@ -60,13 +63,15 @@ Should give you :
 	  This is mainly due for the tutorial briefness.
 
 .. note:: By default, the :func:`~mnn.model.MNnModel.generate_dataset_meshgrid` method generates the density.
-	  But you can ask it to generate the potential by using the keyword ``quantity='potential'``
+	  But you can ask it to generate the potential by using the keyword ``quantity='potential'`` or the force ``quantity='force'``
 		    
 	  
-Finally, we can plot contour lines at the cost of a little more effort :
+We can plot contour lines at the cost of a little more effort :
 
->>> x = np.arange(0.0, 30.1, 0.1)
->>> z = np.arange(-10.0, 10.1, 0.1)
+>>> # Selecting only the y=0 plane :
+>>> x = np.linspace(0.0, 30.0, 300)
+>>> z = np.linspace(-10.0, 10.0, 200)
+>>> # And plotting the contour :
 >>> plt.contour(x, z, v[0].T)
 >>> plt.show()
 
@@ -74,6 +79,36 @@ These commands should give the following contour plot :
 
 .. image:: images/tut_density_contour1.png
 
+And with even more effort, we can plot a quiver plot of the force applied on the xy plane and the corresponding forces along each axis :
+
+>>> # Generating the force mesh grid. The final image will be 30x30 to avoid having too many arrows on the quiver plot
+>>> x, y, z, f = model.generate_dataset_meshgrid((-30.0, -30.0, 0.0), (30.0, 30.0, 0.0), (30, 30, 1), 'force')
+>>> 
+>>> # Selecting the z=0 plane and flattening the array
+>>> x = x[:, :, 0].reshape(-1)
+>>> y = y[:, :, 0].reshape(-1)
+>>> 
+>>> # Same thing but keeping the x and y components of the force
+>>> fx = f[0, :, :, 0].reshape(-1)
+>>> fy = f[1, :, :, 0].reshape(-1)
+>>> 
+>>> # Drawing the plot
+>>> extent = [x.min(), x.max(), y.min(), y.max()]
+>>> plt.figure(figsize=(10, 10))
+>>> gs = gridspec.GridSpec(2, 2)
+>>> ax1 = plt.subplot(gs[1, 0])
+>>> pl1 = ax1.imshow(f[1, :, :, 0].T, extent=extent, aspect='auto')
+>>> ax2 = plt.subplot(gs[0, 1])
+>>> pl2 = ax2.imshow(f[0, :, :, 0].T, extent=extent, aspect='auto')
+>>> ax3 = plt.subplot(gs[1, 1])
+>>> pl3 = ax3.quiver(x.T, y.T, fx.T, fy.T, units='width', scale=0.045)
+>>> plt.show()
+
+The plot displayed should look like :
+
+.. image:: images/tut_force1.png
+
+The quiver plot represents the x and y components of the force on the xy plane. The left plot shows only the y component of the force while the top plot shows the x component of the force. 
 
 Multiple discs and negative scales
 ----------------------------------
@@ -81,14 +116,14 @@ Multiple discs and negative scales
 The strength of ``MNn`` is to provide a model that sums multiple Miyamoto-Nagai discs, and that some of these models can have a negative disc scale (``a``). Let's create such a model with two discs. for this we can use the previous method :func:`~mnn.model.MNnModel.add_disc` or use a the wrapper :func:`~mnn.model.MNnModel.add_discs`. This wrapper takes a list of discs as we would create them with :func:`~mnn.model.MNnModel.add_disc`.
 
 >>> model = MNnModel()
->>> discs = (('z', 10.0, 10.0, 100.0), ('y', -7.0, 20.0, 10.0))
+>>> discs = (('z', 20.0, 10.0, 100.0), ('y', -12.0, 20.0, 10.0))
 >>> model.add_discs(discs)
 
 .. note:: The discs can have ``a<0`` as long as ``a+b>=0``. The other constraints on the model are : ``b>=0`` and ``M>=0``.
 
 This new model can be used as previously, for instance plotting the density on the ``x=0`` plane :
 
->>> x, y, z, v = model.generate_dataset_meshgrid((0.0, -20.0, -20.0), (0.0, 20.0, 20.0), (0.1, 0.1, 0.1))
+>>> x, y, z, v = model.generate_dataset_meshgrid((0.0, -20.0, -20.0), (0.0, 30.0, 30.0), (1, 600, 600))
 >>> plt.imshow(v[:, 0].T)
 >>> plt.show()
 
@@ -98,8 +133,9 @@ Will give you :
 
 And :
 
->>> y = np.arange(-30.0, 30.1, 0.1)
->>> z = np.arange(-30.0, 30.1, 0.1)
+>>> # Selecting the x=0 plane and flattening
+>>> y = np.linspace(0.0, 30.0, 600)
+>>> z = np.linspace(0.0, 30.0, 600)
 >>> plt.contour(y, z, v[:, 0].T)
 >>> plt.show()
 
@@ -107,6 +143,28 @@ Will yield :
 
 .. image:: images/tut_density_contour2.png
 
+Finally, doing the same as before and plotting the force on yz plane :
+
+>>> x, y, z, f = model.generate_dataset_meshgrid((0.0, -30.0, -30.0), (0.0, 30.0, 30.0), (1, 30, 30), 'force')
+>>> y = y[0].reshape(-1)
+>>> z = z[0].reshape(-1)
+>>> fy = f[1, 0].reshape(-1)
+>>> fz = f[2, 0].reshape(-1)
+>>> 
+>>> extent = [y.min(), y.max(), z.min(), z.max()]
+>>> plt.figure(figsize=(10, 10))
+>>> gs = gridspec.GridSpec(2, 2)
+>>> ax1 = plt.subplot(gs[1, 0])
+>>> pl1 = ax1.imshow(f[2, 0].T, extent=extent, aspect='auto')
+>>> ax2 = plt.subplot(gs[0, 1])
+>>> pl2 = ax2.imshow(f[1, 0].T, extent=extent, aspect='auto')
+>>> ax3 = plt.subplot(gs[1, 1])
+>>> pl3 = ax3.quiver(y.T, z.T, fy.T, fz.T, units='width')
+>>> plt.show()	   
+
+Will give the following plot :
+
+.. image:: images/tut_force2.png
 
 Fitting Data
 ------------

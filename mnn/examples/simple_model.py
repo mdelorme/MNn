@@ -21,33 +21,32 @@ plt.show()
 
 # Plotting density meshgrid
 x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (300, 1, 200))
-fig = plt.imshow(v[:,0].T)
+fig = plt.imshow(v[:, 0].T)
 plt.show()
 
 # Contour plot
-x = x[:,0]
-z = z[:,0]
-plt.contour(x, z, v[:,0])
+x = np.linspace(0.0, 30.0, 300)
+z = np.linspace(-10.0, 10.0, 200)
+plt.contour(x, z, v[:, 0].T)
 plt.show()
 
 # Plotting force meshgrid
+plt.close('all')
 x, y, z, f = model.generate_dataset_meshgrid((-30.0, -30.0, 0.0), (30.0, 30.0, 0.0), (30, 30, 1), 'force')
 x = x[:, :, 0].reshape(-1)
 y = y[:, :, 0].reshape(-1)
 fx = f[0, :, :, 0].reshape(-1)
 fy = f[1, :, :, 0].reshape(-1)
 
-plt.close('all')
 extent = [x.min(), x.max(), y.min(), y.max()]
 plt.figure(figsize=(10, 10))
 gs = gridspec.GridSpec(2, 2)
 ax1 = plt.subplot(gs[1, 0])
-pl1 = ax1.imshow(f[0, :, :, 0].T, extent=extent, aspect='auto')
+pl1 = ax1.imshow(f[1, :, :, 0].T, extent=extent, aspect='auto')
 ax2 = plt.subplot(gs[0, 1])
-pl2 = ax2.imshow(f[1, :, :, 0].T, extent=extent, aspect='auto')
+pl2 = ax2.imshow(f[0, :, :, 0].T, extent=extent, aspect='auto')
 ax3 = plt.subplot(gs[1, 1])
-step = 1
-pl3 = ax3.quiver(x[::step].T, y[::step].T, fx[::step].T, fy[::step].T, units='width', scale=0.045)
+pl3 = ax3.quiver(x.T, y.T, fx.T, fy.T, units='width', scale=0.045)
 plt.show()
 
     
