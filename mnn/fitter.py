@@ -145,7 +145,7 @@ class MNnFitter(object):
         # Everything ok, we proceed with the likelihood :
         p = self.data[:, 3]
         quantity_callback = MNnModel.callback_from_string(self.fit_type)
-        model = tmp_model._evaluate_quantity(self.data[:, 0], self.data[:, 1], self.data[:, 2], quantity_callback)
+        model = tmp_model._evaluate_scalar_quantity(self.data[:, 0], self.data[:, 1], self.data[:, 2], quantity_callback)
         inv_sigma2 = 1.0/(self.yerr**2)
         return -0.5*(np.sum((p-model)**2*inv_sigma2))
 
