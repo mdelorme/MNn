@@ -189,6 +189,7 @@ class MNnModel(object):
         num = ar2+(a3h*ah2)
         den = (h**3)*((r**2)+ah2)**2.5
         fac = (b**2)*M1/(4*np.pi)
+        print([M1, h, ah2, ar2, a3h, num, den, fac])
         return fac*num/den
 
     @staticmethod
@@ -216,6 +217,7 @@ class MNnModel(object):
         M1 = np.sqrt(M**2)
         h = np.sqrt(z**2 + b**2)
         den = r**2 + (a + h)**2
+        print([M1, h, den])
         return -G*M1 / np.sqrt(den)
 
     @staticmethod
@@ -258,7 +260,7 @@ class MNnModel(object):
 
         q1 = num / den
         f3 = np.sqrt(n**2 + b**2)
-        q2 = (a + f3) / f3 
+        q2 = (a + f3) / f3
 
         # Ordering the result according to the axis so that the coordinates of the disc transforms
         # correctly into cartesian coordinates.

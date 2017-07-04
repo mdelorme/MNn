@@ -34,6 +34,7 @@ These methods can also be used with vectors. For instance, to evaluate the densi
 
 >>> import numpy as np
 >>> import matplotlib.pyplot as plt
+>>> from matplotlib import gridspec
 >>> x = np.linspace(0.0, 30.0, 100.0)
 >>> density = model.evaluate_density(x, 0.0, 0.0)
 >>> plt.plot(x, density)
@@ -52,7 +53,7 @@ array([-0.03827302, -0.03559385])
 Once the model is completed, you can generate a meshgrid of data. For instance, let's generate and plot a slice of the xz plane at ``y=0``, and for x in [0, 30] and z in [-10, 10]. To do this, we need to define a mesh size. We will make 300 cells along the x axis, 1 along the y axis and 200 along the z axis.
 
 >>> x, y, z, v = model.generate_dataset_meshgrid((0.0, 0.0, -10.0), (30.0, 0.0, 10.0), (300, 1, 200))
->>> plt.imshow(v[0].T)
+>>> plt.imshow(v[:,0,:].T)
 >>> plt.show()
 
 Should give you :
@@ -72,7 +73,7 @@ We can plot contour lines at the cost of a little more effort :
 >>> x = np.linspace(0.0, 30.0, 300)
 >>> z = np.linspace(-10.0, 10.0, 200)
 >>> # And plotting the contour :
->>> plt.contour(x, z, v[0].T)
+>>> plt.contour(x, z, v[:,0,:].T)
 >>> plt.show()
 
 These commands should give the following contour plot :
@@ -123,8 +124,8 @@ The strength of ``MNn`` is to provide a model that sums multiple Miyamoto-Nagai 
 
 This new model can be used as previously, for instance plotting the density on the ``x=0`` plane :
 
->>> x, y, z, v = model.generate_dataset_meshgrid((0.0, -20.0, -20.0), (0.0, 30.0, 30.0), (1, 600, 600))
->>> plt.imshow(v[:, 0].T)
+>>> x, y, z, v = model.generate_dataset_meshgrid((0.0, -30.0, -30.0), (0.0, 30.0, 30.0), (1, 600, 600))
+>>> plt.imshow(v[0,:,:].T)
 >>> plt.show()
 
 Will give you :
@@ -184,7 +185,7 @@ With this line, we indicate the data we want to fit our model on is a density fi
 since ``emcee`` is multithreaded, it is possible to set here the number of threads you want to use for the fitting.
 
 Then we define the MCMC parameters : the number of walkers and the number of steps. We start with 100 walkers and 1000 steps to get
-the solution. Sinally we ask the program to give us as much information as it can.
+the solution. Finally we ask the program to give us as much information as it can.
 
 Since we are using a Monte-Carlo method, it is always better to have a first idea of the location of the solution.
 In this case, for the sake of tutorial, we will give a pretty close estimate of the solution as initial guess so we don't
