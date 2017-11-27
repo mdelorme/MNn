@@ -70,7 +70,7 @@ class MNnModel(object):
         elif M<0:
             raise MNnError('The mass of a disc cannot be negative (M={0})'.format(M))
         elif a+b<0:
-            raise MNnError('The sum of the scale and height of a disc must be positive (a={0}, b={1})'.format(a,b))
+            print('Warning : The sum of the scale and height of the disc is negative (a={0}, b={1})'.format(a,b)) 
 
         self.discs += [a, b, M]
         self.axes.append(axis)
@@ -181,6 +181,7 @@ class MNnModel(object):
         Note:
             This method does **not** check the validity of the constraints ``b>=0``, ``M>=0``, ``a+b>=0``
         """
+        '''
         M1 = np.sqrt(M**2)
         h = np.sqrt((z**2)+(b**2))
         ah2 = (a+h)**2
@@ -190,8 +191,13 @@ class MNnModel(object):
         #den = (h**3)*((r**2)+ah2)**2.5 # Shouldn't that 3 be a 3/2 ?
         den = (h**1.5)*((r**2)+ah2)**2.5
         fac = (b**2)*M1/(4*np.pi)
-        print([M1, h, ah2, ar2, a3h, num, den, fac])
-        return fac*num/den
+        res = fac*num / den'''
+        h = np.sqrt(z*z+b*b)
+        R2 = R**2.0
+        num = (b**2.0)*M*(a*R2 + (a+3*h) * (a+h)**2.0)
+        den = 4.0*np.pi * ((R2 + (a+h)**2.0)**2.5)*(h**1.5)
+        #print([M1, h, ah2, ar2, a3h, num, den, fac])
+        return num/den
 
     @staticmethod
     def mn_potential(r, z, a, b, M):
