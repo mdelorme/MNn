@@ -187,7 +187,8 @@ class MNnModel(object):
         ar2 = a*(r**2)
         a3h = a+(3*h)
         num = ar2+(a3h*ah2)
-        den = (h**3)*((r**2)+ah2)**2.5
+        #den = (h**3)*((r**2)+ah2)**2.5 # Shouldn't that 3 be a 3/2 ?
+        den = (h**1.5)*((r**2)+ah2)**2.5
         fac = (b**2)*M1/(4*np.pi)
         print([M1, h, ah2, ar2, a3h, num, den, fac])
         return fac*num/den
