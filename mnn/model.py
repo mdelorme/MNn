@@ -181,7 +181,6 @@ class MNnModel(object):
         Note:
             This method does **not** check the validity of the constraints ``b>=0``, ``M>=0``, ``a+b>=0``
         """
-        '''
         M1 = np.sqrt(M**2)
         h = np.sqrt((z**2)+(b**2))
         ah2 = (a+h)**2
@@ -191,12 +190,7 @@ class MNnModel(object):
         #den = (h**3)*((r**2)+ah2)**2.5 # Shouldn't that 3 be a 3/2 ?
         den = (h**1.5)*((r**2)+ah2)**2.5
         fac = (b**2)*M1/(4*np.pi)
-        res = fac*num / den'''
-        h = np.sqrt(z*z+b*b)
-        R2 = R**2.0
-        num = (b**2.0)*M*(a*R2 + (a+3*h) * (a+h)**2.0)
-        den = 4.0*np.pi * ((R2 + (a+h)**2.0)**2.5)*(h**1.5)
-        #print([M1, h, ah2, ar2, a3h, num, den, fac])
+        res = fac*num / den
         return num/den
 
     @staticmethod
