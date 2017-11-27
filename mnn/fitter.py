@@ -296,7 +296,7 @@ class MNnFitter(object):
             id_discs = [id_discs]
             
         nplots = len(id_discs)
-        fig, axes = plt.subplots(nplots, 3, sharex=True)
+        fig, axes = plt.subplots(figsize(n_plots*4, 12), nplots, 3, sharex=True)
                 
         for disc_id in id_discs:
             axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[disc_id]]
