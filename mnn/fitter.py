@@ -108,7 +108,7 @@ class MNnFitter(object):
         """
         self.data = np.loadtxt(filename)
         self.n_values = self.data.shape[0]
-        self.yerr = 0.01*np.random.rand(self.n_values)
+        self.yerr = 0.01*self.data[:,3] #np.random.rand(self.n_values)
 
     def loglikelihood(self, discs):
         """ Computes the log likelihood of a given model
@@ -126,7 +126,7 @@ class MNnFitter(object):
             a, b, M = discs[id_disc*3:(id_disc+1)*3]
 
             # Blocking the walkers to go in "forbidden zones" : negative disc height, negative Mass, and a+b < 0
-            if b < 0:
+            if b <= 0:
                 return -np.inf
 
             if M < 0:
@@ -146,8 +146,8 @@ class MNnFitter(object):
         p = self.data[:, 3]
         quantity_callback = MNnModel.callback_from_string(self.fit_type)
         model = tmp_model._evaluate_scalar_quantity(self.data[:, 0], self.data[:, 1], self.data[:, 2], quantity_callback)
-        inv_sigma2 = 1.0/(self.yerr**2)
-        return -0.5*(np.sum((p-model)**2*inv_sigma2))
+        inv_sigma2 = 1.0/(self.yerr**2.0)
+        return -0.5*(np.sum((p-model)**2.0*inv_sigma2))
 
     
     def maximum_likelihood(self, discs):
@@ -184,7 +184,7 @@ class MNnFitter(object):
 
         return values, self.loglikelihood(values)
 
-    def fit_data(self, burnin=100, x0=None, x0_range=1e-4, plot_freq=0, plot_ids=[]):
+    def fit_data(self, burnin=100, x0=None, x0_range=1e-2, plot_freq=0, plot_ids=[]):
         """ Runs ``emcee`` to fit the model to the data. 
 
         Fills the :data:`mnn.fitter.sampler` object with the putative models and returns the burned-in data. The walkers are initialized
@@ -194,7 +194,7 @@ class MNnFitter(object):
         Args:
             burnin (int): The number of timesteps to remove from every walker after the end (default=100).
             x0 (numpy array): The initial guess for the solution (default=None). If None, then x0 is determined randomly.
-            x0_range (float): The radius of the inital guess walker ball (default=1e-4)
+            x0_range (float): The radius of the inital guess walker ball. Can be either a single scalar or a tuple of size 3*n_discs (default=1e-2)
             plot_freq (int): The frequency at which the system outputs control plot (default=0). If 0, then the system does not plot anything until the end.
             plot_ids (array): The id of the discs to plot during the control plots (default=[]). If empty array, then every disc is plotted.
 
@@ -219,6 +219,10 @@ class MNnFitter(object):
                 print("Warning : The shape given for the initial guess ({0}) is not compatible with the model ({1})".format(
                     x0.shape, (self.ndim,)))
             self.model = x0
+
+        # We make sure we can treat a bulk init if necessary
+        if type(x0_range) in (tuple, np.ndarray):
+            x0_range = np.array(x0_range)
             
         init_pos = [self.model + x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
 
@@ -296,7 +300,16 @@ class MNnFitter(object):
             id_discs = [id_discs]
             
         nplots = len(id_discs)
-        fig, axes = plt.subplots(nplots, 3, sharex=True, figsize=(12, nplots*4))
+        fig, axes = plt.subplots(nplots, 3, sharex=True, figsize=(20, nplots*5))
+        shape = axes.shape
+        if len(shape) > 1:
+            for axg in axes:
+                for ax in axg:
+                    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+        else:
+            for ax in axes:
+                ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0)) 
+        
                 
         for disc_id in id_discs:
             axis_name = {"x": "yz", "y": "xz", "z": "xy"}[self.axes[disc_id]]
@@ -309,7 +322,7 @@ class MNnFitter(object):
                 else:
                     axis = axes[i]
                         
-                axis.plot(samples, color='k', alpha=0.4)
+                axis.plot(samples, color='k', alpha=10.0 / self.n_walkers)
                 #axis.yaxis.set_major_locator(MaxNLocator(5))
                 axis.set_ylabel('$'+param_name[i]+'_{{{0}{1}}}$'.format(axis_name, disc_id))
                 axis.set_xlabel('Iteration')
