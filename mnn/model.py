@@ -181,17 +181,14 @@ class MNnModel(object):
         Note:
             This method does **not** check the validity of the constraints ``b>=0``, ``M>=0``, ``a+b>=0``
         """
-        M1 = np.sqrt(M**2)
-        h = np.sqrt((z**2)+(b**2))
-        ah2 = (a+h)**2
-        ar2 = a*(r**2)
-        a3h = a+(3*h)
+        h = np.sqrt((z**2.0)+(b**2.0))
+        fac = (b**2)*M/(4.0*np.pi)
+        ah2 = (a+h)**2.0
+        ar2 = a*(r**2.0)
+        a3h = a+3.0*h
         num = ar2+(a3h*ah2)
-        #den = (h**3)*((r**2)+ah2)**2.5 # Shouldn't that 3 be a 3/2 ?
-        den = (h**1.5)*((r**2)+ah2)**2.5
-        fac = (b**2)*M1/(4*np.pi)
-        res = fac*num / den
-        return num/den
+        den = (h**3.0)*((r**2)+ah2)**2.5
+        return fac*num/den
 
     @staticmethod
     def mn_potential(r, z, a, b, M):
@@ -487,7 +484,7 @@ class MNnModel(object):
         # This allows us to avoid testing for scalar or vector
         # while initializing the total_sum variable
         a, b, M = self.discs[0:3]
-        axis = self.axes[0]
+        axis = self.axes[0] 
         if axis == "x":
             total_sum = quantity_callback(ryz, x, a, b, M)
         elif axis == "y":
