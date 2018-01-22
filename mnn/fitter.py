@@ -42,7 +42,7 @@ class MNnFitter(object):
     (with a predefined number of discs) to a datafile.
     """
     def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=123,
-                 fit_type='density', check_positive_definite=False, verbose=False):
+                 fit_type='density', check_positive_definite=False, allow_negative_mass=False, verbose=False):
         """ Constructor for the Miyamoto-Nagai negative fitter. The fitting is based on ``emcee``.
 
         Args:
@@ -52,6 +52,7 @@ class MNnFitter(object):
             random_seed (int): The random seed used for the fitting (default=123).
             fit_type ({'density', 'potential'}): What type of data is fitted (default='density').
             check_positive_definite (bool): Should the algorithm check if every walker is positive definite at every step ?
+            allow_negative_mass (bool): Allow the fitter to use models with negative masses (default=False)
             verbose (bool): Should the program output additional information (default=False).
 
         Note:
@@ -82,6 +83,7 @@ class MNnFitter(object):
             print('Warning : Checking for definite-positiveness at every walker step. ' +
                   'This ensures that the end model will be definite positive but' +
                   'might take a very long time to compute !')
+        self.allow_NM = allow_negative_mass
 
         np.random.seed(random_seed)
 
@@ -122,6 +124,7 @@ class MNnFitter(object):
         tmp_model = MNnModel()
         
         # Checking that a+b > 0 for every model :
+        total_mass = 0.0
         for id_disc, axis in enumerate(self.axes):
             a, b, M = discs[id_disc*3:(id_disc+1)*3]
 
@@ -129,13 +132,17 @@ class MNnFitter(object):
             if b <= 0:
                 return -np.inf
 
-            if M < 0:
+            if M < 0 and not self.allow_NM:
                 return -np.inf
             
             if a+b < 0:
                 return -np.inf
 
             tmp_model.add_disc(axis, a, b, M)
+            total_mass += M
+
+        if total_mass < 0.0:
+            return -np.inf
 
         # Now checking for positive-definiteness:
         if self.check_DP:

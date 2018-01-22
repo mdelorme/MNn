@@ -67,8 +67,8 @@ class MNnModel(object):
         """
         if b<0:
             raise MNnError('The height of a disc cannot be negative (b={0})'.format(b))
-        elif M<0:
-            raise MNnError('The mass of a disc cannot be negative (M={0})'.format(M))
+        #elif M<0:
+        #    raise MNnError('The mass of a disc cannot be negative (M={0})'.format(M))
         elif a+b<0:
             print('Warning : The sum of the scale and height of the disc is negative (a={0}, b={1})'.format(a,b)) 
 
