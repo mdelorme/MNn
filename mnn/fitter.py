@@ -4,6 +4,7 @@ import emcee
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as op
+from multiprocessing import Pool
 from matplotlib.ticker import MaxNLocator
 
 from .model import MNnModel, MNnError
@@ -157,25 +158,43 @@ class MNnFitter(object):
         return -0.5*(np.sum((p-model)**2.0*inv_sigma2))
 
     
-    def maximum_likelihood(self, discs):
+    def maximum_likelihood(self, samples):
         """ Computation of the maximum likelihood for a given model and stores them in ``MNnFitter.model``
 
-        The calculation is based on scipy optimization routines to maximize the likelihood of the model.
-
         Args:
-            discs (tuple): the initial guess for the values of the parameters stored in a flat-tuple (a1, b1, M1, a2, b2, ...)
+            samples : The nd-array given by the fit_data routine
         Returns:
-            The parameters corresponding to the maximized chi-square log likelihood
+            The parameters corresponding to the maximized log likelihood
         """
         if self.verbose:
             print("Computing maximum of likelihood")
 
         # Optimizing the parameters of the model to minimize the loglikelihood
-        chi2 = lambda m: -2.0 * self.loglikelihood(m)
-        result = op.minimize(chi2, discs)
-        values = result["x"]
+        best_model = -1
+        best_score = -np.inf
+        N = samples.shape[1]
+
+        '''
+        # TODO : Vectorize this !
+        for i, s in enumerate(samples.T):
+            if self.verbose and i%1000 == 999:
+                sys.stdout.write('\r  - Reading chain {}/{}'.format(i+1, N))
+
+            score = self.loglikelihood(s)
+            if score > best_score:
+                best_score = score
+                best_model = i
+        '''
+
+        # Computing loglikelihood
+        p = Pool(self.n_threads)
+        scores = np.asarray(p.map(self.loglikelihood, samples.T))
+        best_score = scores.max()
+        best_mask = (scores == best_score)
+        values = samples.T[best_mask][0]
 
         if self.verbose:
+            sys.stdout.write('  - Reading chain {}/{}\n'.format(N, N))
             print("Maximum of likelihood results :")
 
             axis_stat = {"x": [1, "yz"], "y": [1, "xz"], "z": [1, "xy"]}
@@ -189,7 +208,7 @@ class MNnFitter(object):
 
                 stat[0] += 1
 
-        return values, self.loglikelihood(values)
+        return values, best_score
 
     def fit_data(self, burnin=100, x0=None, x0_range=1e-2, plot_freq=0, plot_ids=[]):
         """ Runs ``emcee`` to fit the model to the data. 
@@ -231,7 +250,7 @@ class MNnFitter(object):
         if type(x0_range) in (tuple, np.ndarray):
             x0_range = np.array(x0_range)
             
-        init_pos = [self.model + x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
+        init_pos = [self.model + self.model*x0_range*np.random.randn(self.ndim) for i in range(self.n_walkers)]
 
         # Running the MCMC to get the parameters
         if self.verbose:
@@ -373,20 +392,6 @@ class MNnFitter(object):
             
         return figt
 
-    def compute_quantiles(self, samples, quantiles=(16, 50, 84)):
-        """ Finds the quantiles values on the whole sample kept after emcee run. 
-
-        This method computes the values of the parameters of the model at each specified quantile.
-        For instance, if the desired quantiles is only ``(50)``, then the returned array will correspond to the median value for each parameter
-
-        Args:
-            samples (numpy array): The result of fit-data, that will be processed
-            quantiles (tuple): What quantiles are to be computed (default=(16, 50, 84))
-
-        Returns:
-            A numpy array corresponding to the values, for each parameter and for each quantile.
-        """
-        return np.array(np.percentile(samples, quantiles, axis=1))
 
     def make_model(self, model):
         """ Takes a flattened model as parameter and returns a :class:`mnn.model.MNnModel` object.
