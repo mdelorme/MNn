@@ -13,7 +13,8 @@ class MNnError(Exception):
     def __str__(self):
         return self.msg
 
-G = 0.0043008211
+G=4.302e-3
+#G = 0.0043008211
 """float: Gravitational constant to use when evaluating potential or forces on the models. 
 The value must be changed to match the units required by the user."""
 
