@@ -43,7 +43,8 @@ class MNnFitter(object):
     (with a predefined number of discs) to a datafile.
     """
     def __init__(self, n_walkers=100, n_steps=1000, n_threads=1, random_seed=123,
-                 fit_type='density', check_positive_definite=False, allow_negative_mass=False, verbose=False):
+                 fit_type='density', check_positive_definite=False, cdp_range=None, 
+                 allow_negative_mass=False, verbose=False):
         """ Constructor for the Miyamoto-Nagai negative fitter. The fitting is based on ``emcee``.
 
         Args:
@@ -53,6 +54,7 @@ class MNnFitter(object):
             random_seed (int): The random seed used for the fitting (default=123).
             fit_type ({'density', 'potential'}): What type of data is fitted (default='density').
             check_positive_definite (bool): Should the algorithm check if every walker is positive definite at every step ?
+            cdp_range({float, None}): Maximum range to which check positive definiteness. If none, the criterion will be tested, for each axis on 10*max_scale_radius
             allow_negative_mass (bool): Allow the fitter to use models with negative masses (default=False)
             verbose (bool): Should the program output additional information (default=False).
 
@@ -82,8 +84,9 @@ class MNnFitter(object):
         self.check_DP = check_positive_definite
         if self.check_DP and self.verbose:
             print('Warning : Checking for definite-positiveness at every walker step. ' +
-                  'This ensures that the end model will be definite positive but' +
+                  'This ensures that the end model will be definite positive but ' +
                   'might take a very long time to compute !')
+        self.cdp_range = cdp_range
         self.allow_NM = allow_negative_mass
 
         np.random.seed(random_seed)
@@ -147,7 +150,7 @@ class MNnFitter(object):
 
         # Now checking for positive-definiteness:
         if self.check_DP:
-            if not tmp_model.is_positive_definite():
+            if not tmp_model.is_positive_definite(cdp_range):
                 return -np.inf
 
         # Everything ok, we proceed with the likelihood :
