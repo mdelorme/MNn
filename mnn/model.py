@@ -373,11 +373,14 @@ class MNnModel(object):
         return self._evaluate_force(x[:,0], x[:,1], x[:,2])
     
 
-    def is_positive_definite(self):
+    def is_positive_definite(self, max_range=None):
         """ Returns true if the sum of the discs are positive definite.
         
         The methods tests along every axis if the minimum of density is positive. If it is not the case then the model should 
         NOT be used since we cannot ensure positive density everywhere.
+
+        Args:
+            max_range (a float or None): Maximum range to evaluate, if None the maximum scale radius will be taken. (default = None)
 
         Returns:
             A boolean indicating if the model is positive definite.
@@ -385,19 +388,22 @@ class MNnModel(object):
         mods = self.get_model()
         
         for axis in ['x', 'y', 'z']:
-            # Determine the interval
-            max_range = 0.0
-            for m in mods:
-                # Relevant value : scale parameter for the parallel axes
-                if m[0] != axis:
-                    if m[1] > max_range:
-                        max_range = m[1]
+            if max_range == None:
+                # Determine the interval
+                mr = 0.0
+                for m in mods:
+                    # Relevant value : scale parameter for the parallel axes
+                    if m[0] != axis:
+                        if m[1] > mr:
+                            mr = m[1]
 
-            # If we don't have a max_range then we can skip this root finding : the function cannot go below zero
-            if abs(max_range) < 1e-18:
-                continue
+                # If we don't have a max_range then we can skip this root finding : the function cannot go below zero
+                if abs(mr) < 1e-18:
+                    continue
 
-            max_range *= 10.0 # Multiply by a factor to be certain "everything is enclosed"
+                mr *= 10.0 # Multiply by a factor to be certain "everything is enclosed"
+            else:
+                mr = max_range
 
             xopt, fval, ierr, nf = op.fminbound(self._evaluate_density_axis, 0.0, max_range, args = [axis], disp=0, full_output=True)
             if fval < 0.0:
