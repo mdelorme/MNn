@@ -150,7 +150,7 @@ class MNnFitter(object):
 
         # Now checking for positive-definiteness:
         if self.check_DP:
-            if not tmp_model.is_positive_definite(cdp_range):
+            if not tmp_model.is_positive_definite(self.cdp_range):
                 return -np.inf
 
         # Everything ok, we proceed with the likelihood :
