@@ -18,12 +18,12 @@ samples, prob = fitter.fit_data(plot_freq=50, burnin=400, x0=x0)
 fig = fitter.plot_disc_walkers()
 fig.show()
     
-q = fitter.compute_quantiles(samples)
-print(q)
+best, score = fitter.maximum_likelihood()
+print(best)
 
 # Building a model from the fitter
-model = fitter.make_model(q[1])
+model = fitter.make_model(best)
 
 # Plotting the corner plot with our selected value :
-fig = fitter.corner_plot(q[1])
+fig = fitter.corner_plot(best)
 fig.show()
