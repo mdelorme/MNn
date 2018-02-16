@@ -69,6 +69,7 @@ class MNnFitter(object):
 
         # The fitted models
         self.samples = None
+        self.lnprob  = None
         self.discs = None
         self.axes = None
         self.ndim = 0
@@ -161,7 +162,7 @@ class MNnFitter(object):
         return -0.5*(np.sum((p-model)**2.0*inv_sigma2))
 
     
-    def maximum_likelihood(self, samples):
+    def maximum_likelihood(self):
         """ Computation of the maximum likelihood for a given model and stores them in ``MNnFitter.model``
 
         Args:
@@ -173,9 +174,9 @@ class MNnFitter(object):
             print("Computing maximum of likelihood")
 
         # Optimizing the parameters of the model to minimize the loglikelihood
-        best_model = -1
-        best_score = -np.inf
-        N = samples.shape[1]
+        #best_model = -1
+        #best_score = -np.inf
+        #N = samples.shape[1]
 
         '''
         # TODO : Vectorize this !
@@ -189,6 +190,7 @@ class MNnFitter(object):
                 best_model = i
         '''
 
+        '''
         # Computing loglikelihood
         p = Pool(self.n_threads)
         scores = np.asarray(p.map(self.loglikelihood, samples.T))
@@ -210,6 +212,12 @@ class MNnFitter(object):
                 print("M{0} = {1}".format(axis_name, values[id_disc*3+2]))
 
                 stat[0] += 1
+
+        '''
+
+        pid = self.lnprob.argmax()
+        best_score = self.lnprob[pid]
+        values = self.samples[pid,:]
 
         return values, best_score
 
@@ -311,7 +319,8 @@ class MNnFitter(object):
                           'To ensure a positive definite model, consider setting the parameter "check_positive_definite" to True in the fitter !')
 
         self.samples = samples
-        return samples.T, lnprob.T
+        self.lnprob  = lnprob
+        return samples, lnprob
 
     def plot_disc_walkers(self, id_discs=None):
         """ Plotting the walkers on each parameter of a certain disc.
@@ -388,6 +397,7 @@ class MNnFitter(object):
         if self.verbose:
             print("Computing corner plot ...")
 
+        print('Test : ', self.samples.shape)
         if model != None:
             figt = corner.corner(self.samples, labels=labels, truths=model)
         else:
