@@ -216,7 +216,6 @@ class MNnModel(object):
         M1 = np.sqrt(M**2)
         h = np.sqrt(z**2 + b**2)
         den = r**2 + (a + h)**2
-        print([M1, h, den])
         return -G*M1 / np.sqrt(den)
 
     @staticmethod
@@ -253,6 +252,7 @@ class MNnModel(object):
         """
         num = -G * M
         R2 = t1**2 + t2**2
+
         f1 = np.sqrt(b**2 + n**2)
         f2 = (a + f1)**2
         den = (R2 + f2)**1.5
