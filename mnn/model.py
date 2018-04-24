@@ -212,7 +212,6 @@ class MNnModel(object):
             This method relies on user-specified value for the gravitational constant. 
             This value can be overriden by setting the value :data:`mnn.model.G`.
         """
-        kpc = 1000.0
         M1 = np.sqrt(M**2)
         h = np.sqrt(z**2 + b**2)
         den = r**2 + (a + h)**2
@@ -252,11 +251,9 @@ class MNnModel(object):
         """
         num = -G * M
         R2 = t1**2 + t2**2
-
         f1 = np.sqrt(b**2 + n**2)
         f2 = (a + f1)**2
         den = (R2 + f2)**1.5
-
         q1 = num / den
         f3 = np.sqrt(n**2 + b**2)
         q2 = (a + f3) / f3
@@ -370,7 +367,7 @@ class MNnModel(object):
         Returns:
             The summed force over all discs at every position in vector ``x``.
         """
-        return self._evaluate_force(x[:,0], x[:,1], x[:,2])
+        return self.evaluate_force(x[:,0], x[:,1], x[:,2])
     
 
     def is_positive_definite(self, max_range=None):
