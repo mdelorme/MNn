@@ -43,6 +43,17 @@ class MNnModel(object):
         self.yerr = None
         self.n_values = 0
 
+    def load_from_array(self, model, axes):
+        """ Generates the model from a numpy array
+        
+        Args:
+           model (Numpy array): A Nx3 numpy array holding the model.
+           axes (tuple): A tuple indicating along which axis each disc is aligned
+        """
+        for m, ax in zip(model, axes):
+            a, b, M = m
+            self.add_disc(ax, a, b, M)
+
     def add_disc(self, axis, a, b, M):
         """ Adds a Miyamoto-Nagai negative disc to the model, this disc will be included in the summation process when evaluating quantities with the model.
 
