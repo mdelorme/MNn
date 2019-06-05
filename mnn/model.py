@@ -3,6 +3,9 @@ import scipy.optimize as op
 import numpy as np
 import warnings
 
+# Helper
+is_array = lambda x: isinstance(x, np.ndarray)
+
 class MNnError(Exception):
     """ 
     Miyamoto-Nagai negative exceptions : raised when the models parameters are in invalid ranges or that the user is doing something he should not
@@ -260,14 +263,36 @@ class MNnModel(object):
         f3 = np.sqrt(n**2 + b**2)
         q2 = (a + f3) / f3
 
+        # Checking dimension consistency between operands
+        at1 = is_array(t1)
+        at2 = is_array(t2)
+        at3 = is_array(n)
+        
+        if any((at1, at2, at3)):
+            if at1:
+                Nv = t1.shape[0]
+            elif at2:
+                Nv = t2.shape[0]
+            else:
+                Nv = n.shape[0]
+            
+            if not at1:
+                t1 = np.asarray([t1]*Nv)
+            if not at2:
+                t2 = np.asarray([t2]*Nv)
+            if not at3:
+                n = np.asarray([n]*Nv)
+
         # Ordering the result according to the axis so that the coordinates of the disc transforms
         # correctly into cartesian coordinates.
         if axis == 'x':
-            return q1 * np.asarray((n*q2, t1, t2))
+            res = q1 * np.asarray((n*q2, t1, t2))
         elif axis == 'y':
-            return q1 * np.asarray((t1, n*q2, t2))
+            res = q1 * np.asarray((t1, n*q2, t2))
         else:
-            return q1 * np.asarray((t1, t2, n*q2))
+            res = q1 * np.asarray((t1, t2, n*q2))
+
+        return res.T
         
 
     # Point evaluation
